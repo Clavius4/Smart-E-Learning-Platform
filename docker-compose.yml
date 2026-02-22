@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./smart-elearning-backend
+      dockerfile: Dockerfile
+    container_name: smart-learning-backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./smart-elearning-backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+    volumes:
+      - ./smart-elearning-backend:/app
+      - backend_node_modules:/app/node_modules
+      - backend_uploads:/app/tmp
+      - backend_logs:/app/logs
+    networks:
+      - smart-learning-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Admin Dashboard Panel
+  admin-dashboard:
+    build:
+      context: ./smart-learning-admin-dashboard-panel
+      dockerfile: Dockerfile
+    container_name: smart-learning-admin
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_BACKEND_URL=http://backend:5000
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    volumes:
+      - ./smart-learning-admin-dashboard-panel:/app
+      - admin_node_modules:/app/node_modules
+    networks:
+      - smart-learning-network
+    restart: unless-stopped
+
+  # Instructor Dashboard Panel
+  instructor-dashboard:
+    build:
+      context: ./smart-learning-instructor-dashboard-panel
+      dockerfile: Dockerfile
+    container_name: smart-learning-instructor
+    ports:
+      - "5175:5173"
+    environment:
+      - VITE_BACKEND_URL=http://backend:5000
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    volumes:
+      - ./smart-learning-instructor-dashboard-panel:/app
+      - instructor_node_modules:/app/node_modules
+    networks:
+      - smart-learning-network
+    restart: unless-stopped
+
+  # Student Frontend (Vue.js)
+  student-frontend:
+    build:
+      context: ./smart-elearning-frontend
+      dockerfile: Dockerfile
+    container_name: smart-learning-student
+    ports:
+      - "5174:5173"
+    environment:
+      - VITE_BACKEND_URL=http://backend:5000
+      - NODE_ENV=production
+    depends_on:
+      - backend
+    volumes:
+      - ./smart-elearning-frontend:/app
+      - student_node_modules:/app/node_modules
+    networks:
+      - smart-learning-network
+    restart: unless-stopped
+
+  # MongoDB (local development only - not for production)
+  mongodb:
+    image: mongo:6
+    container_name: smart-learning-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=esmart_learning
+      - MONGO_INITDB_ROOT_PASSWORD=esmart_learning
+      - MONGO_INITDB_DATABASE=smart-elearning
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - smart-learning-network
+    restart: unless-stopped
+    command: mongod --auth
+    # Use profiles to conditionally start this service
+    # Run with: docker-compose --profile local up
+    profiles:
+      - local
+      - development
+
+networks:
+  smart-learning-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  backend_node_modules:
+  backend_uploads:
+  backend_logs:
+  admin_node_modules:
+  instructor_node_modules:
+  student_node_modules:
+  mongodb_data:
+  mongodb_config:

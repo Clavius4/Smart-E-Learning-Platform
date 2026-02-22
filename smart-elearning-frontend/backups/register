@@ -1,0 +1,296 @@
+-- register
+
+<template>
+  <div class="auth-page bg-gradient-to-b from-green-50 to-blue-50">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+      <!-- Header with logo and sign language illustration -->
+      <div class="flex flex-col items-center mb-8">
+        <img src="" alt="App Logo" class="h-20 mb-4">
+        <h1 class="text-3xl font-bold text-center text-teal-800 mb-2 flex items-center">
+          <span>Create Account</span>
+          <img src="" alt="Sign Language" class="h-8 ml-2">
+        </h1>
+      </div>
+
+      <!-- Registration Form -->  
+      <div class="bg-white p-8 rounded-2xl shadow-lg border border-teal-100">
+        <!-- First Name Input -->
+        <div class="mb-6">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="User" class="h-5 mr-2">
+            First Name
+          </label>
+          <input 
+            type="text" 
+            class="w-full px-4 py-3 border-2 border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent"
+            placeholder="Your first name"
+          >
+        </div>
+        <!-- Last Name Input -->
+
+                <div class="mb-6">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="User" class="h-5 mr-2">
+            Last Name
+          </label>
+          <input 
+            type="text" 
+            class="w-full px-4 py-3 border-2 border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent"
+            placeholder="Your last name"
+          >
+        </div>
+
+        <!-- Email Input -->
+        <div class="mb-6">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="Email" class="h-5 mr-2">
+            Email Address
+          </label>
+          <input 
+            type="email" 
+            class="w-full px-4 py-3 border-2 border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent"
+            placeholder="your@email.com"
+          >
+        </div>
+
+        <!-- Password Input -->
+        <div class="mb-8">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="Password" class="h-5 mr-2">
+            Create Password
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              class="w-full px-4 py-3 border-2 border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent"
+              placeholder="••••••••"
+            >
+            <img src="" alt="Toggle Visibility" class="h-5 absolute right-3 top-3 cursor-pointer">
+          </div>
+          <div class="mt-2 flex items-center">
+            <img src="" alt="Info" class="h-4 mr-1">
+            <span class="text-xs text-gray-500">Use 8+ characters with a mix of letters & numbers</span>
+          </div>
+        </div>
+
+                <!-- Confirm Password Input -->
+        <div class="mb-8">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="Password" class="h-5 mr-2">
+            Confirm Password
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              class="w-full px-4 py-3 border-2 border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-300 focus:border-transparent"
+              placeholder="••••••••"
+            >
+            <img src="" alt="Toggle Visibility" class="h-5 absolute right-3 top-3 cursor-pointer">
+          </div>
+          <div class="mt-2 flex items-center">
+            <img src="" alt="Info" class="h-4 mr-1">
+            <span class="text-xs text-gray-500">Use 8+ characters with a mix of letters & numbers</span>
+          </div>
+        </div>
+
+  <!-- Register Button - now with @click handler -->
+  <router-link to="/verify-otp" class="w-full">
+    <button 
+      class="w-full bg-gradient-to-r from-teal-500 to-green-600 hover:from-teal-600 hover:to-green-700 text-white py-3 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all duration-300 mb-6 flex items-center justify-center"
+    >
+      <img src="" alt="Sign Up" class="h-5 mr-2">
+      CREATE ACCOUNT
+    </button>
+  </router-link>
+
+        <!-- Terms and Conditions -->
+        <div class="flex items-start mb-6">
+          <input type="checkbox" id="terms" class="mt-1 mr-2">
+          <label for="terms" class="text-sm text-gray-600">
+            I agree to the <a href="#" class="text-teal-600 hover:underline">Terms of Service</a> and <a href="#" class="text-teal-600 hover:underline">Privacy Policy</a>
+          </label>
+        </div>
+
+        <!-- Divider -->
+        <div class="flex items-center mb-6">
+          <div class="flex-1 border-t border-gray-200"></div>
+          <span class="px-3 text-gray-400">or</span>
+          <div class="flex-1 border-t border-gray-200"></div>
+        </div>
+
+        <!-- Login Link -->
+        <div class="text-center">
+          <p class="text-gray-600 mb-2">Already have an account?</p>
+          <router-link to="/login" class="text-teal-600 hover:underline font-medium flex items-center justify-center">
+            <img src="" alt="Login" class="h-4 mr-2">
+            Log in here
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Benefits Section -->
+      <div class="mt-12 text-center bg-white p-6 rounded-2xl shadow-md">
+        <h2 class="text-xl font-bold mb-4 text-teal-800 flex items-center justify-center">
+          <img src="" alt="Gift" class="h-5 mr-2">
+          WHY JOIN US?
+        </h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-3 bg-teal-50 rounded-lg">
+            <img src="" alt="Games" class="h-8 mx-auto mb-2">
+            <p class="text-sm font-medium">100+ Educational Games</p>
+          </div>
+          <div class="p-3 bg-teal-50 rounded-lg">
+            <img src="" alt="No Ads" class="h-8 mx-auto mb-2">
+            <p class="text-sm font-medium">Ad-Free Experience</p>
+          </div>
+          <div class="p-3 bg-teal-50 rounded-lg">
+            <img src="" alt="Progress" class="h-8 mx-auto mb-2">
+            <p class="text-sm font-medium">Track Learning Progress</p>
+          </div>
+          <div class="p-3 bg-teal-50 rounded-lg">
+            <img src="" alt="Accessibility" class="h-8 mx-auto mb-2">
+            <p class="text-sm font-medium">Accessible Design</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'RegisterView'
+
+  
+
+}
+</script>
+
+<style scoped>
+.auth-page {
+  min-height: 100vh;
+  padding-top: 2rem;
+  background-image: url('');
+  background-size: cover;
+}
+</style>
+
+
+--login
+
+<template>
+  <div class="auth-page bg-gradient-to-b from-blue-50 to-purple-50">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+      <!-- Header with logo and sign language illustration -->
+      <div class="flex flex-col items-center mb-8">
+        <img src="" alt="App Logo" class="h-20 mb-4">
+        <h1 class="text-3xl font-bold text-center text-indigo-800 mb-2 flex items-center">
+          <span>Account Access</span>
+          <img src="" alt="Sign Language" class="h-8 ml-2">
+        </h1>
+        <p class="text-center text-gray-600">This log-in is for all subscribers.</p>
+      </div>
+
+      <!-- Login Form -->
+      <div class="bg-white p-8 rounded-2xl shadow-lg border border-purple-100">
+        <!-- Email Input -->
+        <div class="mb-6">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="Email" class="h-5 mr-2">
+            Email Address / Access Name
+          </label>
+          <div class="relative">
+            <input 
+              type="text" 
+              class="w-full px-4 py-3 border-2 border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-transparent"
+              placeholder="your@email.com"
+            >
+            <img src="" alt="Help" class="h-5 absolute right-3 top-3 cursor-pointer" title="Enter your registered email">
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div class="mb-6">
+          <label class="block text-gray-700 mb-2 font-medium flex items-center">
+            <img src="" alt="Password" class="h-5 mr-2">
+            Password / Access Code
+          </label>
+          <div class="relative">
+            <input 
+              type="password" 
+              class="w-full px-4 py-3 border-2 border-purple-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-transparent"
+              placeholder="••••••••"
+            >
+            <img src="" alt="Toggle Visibility" class="h-5 absolute right-3 top-3 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Login Button -->
+        <button class="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white py-3 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all duration-300 mb-6 flex items-center justify-center">
+          <img src="" alt="Login" class="h-5 mr-2">
+          LOG IN
+        </button>
+
+        <!-- Forgot Password Link -->
+        <div class="text-center mb-6">
+          <router-link to="/forgot-password" class="text-indigo-600 hover:underline font-medium flex items-center justify-center">
+            <img src="" alt="Forgot Password" class="h-4 mr-2">
+            Forgot password?
+          </router-link>
+        </div>
+
+        <!-- Divider -->
+        <div class="flex items-center mb-6">
+          <div class="flex-1 border-t border-gray-200"></div>
+          <span class="px-3 text-gray-400">or</span>
+          <div class="flex-1 border-t border-gray-200"></div>
+        </div>
+
+        <!-- Sign Up Section -->
+        <div class="text-center">
+          <p class="mb-4 text-gray-600">Not a subscriber yet?</p>
+          <router-link 
+            to="/register" 
+            class="inline-block bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white px-8 py-3 rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all duration-300 flex items-center"
+          >
+            <img src="" alt="Sign Up" class="h-5 mr-2">
+            JOIN NOW
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Additional Resources -->
+      <div class="mt-12 text-center bg-white p-6 rounded-2xl shadow-md">
+        <h2 class="text-xl font-bold mb-4 text-indigo-800 flex items-center justify-center">
+          <img src="" alt="Star" class="h-5 mr-2">
+          PREMIUM BENEFITS
+        </h2>
+        <ul class="space-y-3">
+          <li class="flex items-center justify-center">
+            <img src="" alt="Check" class="h-4 mr-2">
+            <router-link to="/premium" class="text-indigo-600 hover:underline font-medium">Unlock all educational games</router-link>
+          </li>
+          <li class="flex items-center justify-center">
+            <img src="" alt="Check" class="h-4 mr-2">
+            <router-link to="/premium" class="text-indigo-600 hover:underline font-medium">Ad-free experience</router-link>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'LoginView'
+}
+</script>
+
+<style scoped>
+.auth-page {
+  min-height: 100vh;
+  padding-top: 2rem;
+  background-image: url('');
+  background-size: cover;
+}
+</style>
