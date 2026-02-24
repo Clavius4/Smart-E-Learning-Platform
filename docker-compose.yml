@@ -95,8 +95,8 @@ services:
     ports:
       - "27017:27017"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=esmart_learning
-      - MONGO_INITDB_ROOT_PASSWORD=esmart_learning
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=softnet
       - MONGO_INITDB_DATABASE=smart-elearning
     volumes:
       - mongodb_data:/data/db
