@@ -222,32 +222,42 @@ onMounted(async () => {
 
 // Computed properties
 const filteredCourses = computed(() => {
-  if (!courseStore.courses) {
-    console.log('⚠️ No courses in store')
-    return []
-  }
-  
   console.log('🔍 Filtering courses. Active filters:', {
     level: filterLevel.value,
     subject: filterSubject.value,
     search: searchQuery.value
   })
   
-  const filtered = courseStore.courses.filter(course => {
+  // Merge all courses with enrolled courses to ensure enrolled courses are always shown
+  const allCoursesToFilter = courseStore.courses || []
+  const enrolledCourseIds = new Set(courseStore.enrolledCourses.map(ec => ec._id?.toString()))
+  
+  // Add enrolled courses that aren't in the main courses list
+  const mergedCourses = [
+    ...allCoursesToFilter,
+    ...courseStore.enrolledCourses.filter(ec => 
+      !allCoursesToFilter.some(c => c._id?.toString() === ec._id?.toString())
+    )
+  ]
+  
+  console.log('📋 Total courses to filter (merged):', mergedCourses.length, {
+    fromCatalog: allCoursesToFilter.length,
+    fromEnrolled: courseStore.enrolledCourses.length,
+    uniqueEnrolled: courseStore.enrolledCourses.filter(ec => 
+      !allCoursesToFilter.some(c => c._id?.toString() === ec._id?.toString())
+    ).length
+  })
+  
+  if (mergedCourses.length === 0) {
+    console.log('⚠️ No courses available (neither in catalog nor enrolled)')
+    return []
+  }
+  
+  const filtered = mergedCourses.filter(course => {
     // ALWAYS show enrolled courses - they bypass all filters
     // Convert IDs to strings for proper comparison (MongoDB ObjectIds)
     const courseIdStr = course._id?.toString()
-    const isEnrolled = courseStore.enrolledCourses.some(ec => {
-      const enrolledIdStr = ec._id?.toString()
-      const match = enrolledIdStr === courseIdStr
-      if (match) {
-        console.log('✅ Enrollment match found for:', course.courseName, {
-          enrolledId: enrolledIdStr,
-          courseId: courseIdStr
-        })
-      }
-      return match
-    })
+    const isEnrolled = enrolledCourseIds.has(courseIdStr)
     
     if (isEnrolled) {
       console.log('📚 Enrolled course BYPASSING filters:', course.courseName)
