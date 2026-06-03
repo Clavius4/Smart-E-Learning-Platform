@@ -12,6 +12,7 @@ import IconifyIcon from 'components/base/IconifyIcon';
 import Profile from 'assets/images/Logo.png';
 import { useAuth } from 'contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import paths from 'routes/paths';
 
 interface MenuItems {
   id: number;
@@ -70,7 +71,7 @@ const ProfileMenu = () => {
     handleProfileMenuClose();
     if (title === 'Logout') {
       logout();
-      navigate('/authentication/login');
+      navigate(paths.signin);
     }
   };
 

@@ -78,10 +78,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import MainNav from '@/components/navigation/MainNav.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const otpInputs = ref([])
 const otp = ref(Array(6).fill(''))
@@ -169,23 +170,9 @@ const verifyOtp = async () => {
 
   try {
     loading.value = true
-    // Assuming authStore is imported and available, e.g., `import { useAuthStore } from '@/stores/auth'`
-    // For this change, we'll simulate the authStore call with the original fetch logic
-    // If authStore is not defined, this will cause an error.
-    // The instruction implies a refactoring to use authStore, but the provided context doesn't include it.
-    // For the sake of applying the change faithfully, I will replace the content as given.
-    
-    // Original fetch logic (commented out as per instruction's implied refactor)
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://smartmtn.ac.tz/api'
-    const response = await fetch(`${apiUrl}/auth/verify-otp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.value,
-        otp: otpCode
-      })
+    const result = await authStore.verifyOtp({
+      email: email.value,
+      otp: otpCode
     })
 
     if (result.success) {
@@ -228,21 +215,7 @@ const resendOtp = async () => {
   
   try {
     loading.value = true
-    
-    // For server deployment
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://smartmtn.ac.tz/api'
-    
-    const response = await fetch(`${apiUrl}/auth/resend-otp`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.value
-      })
-    })
-
-    const result = await response.json()
+    const result = await authStore.resendOtp({ email: email.value })
     
     if (result.success) {
       alert('📧 New OTP sent! Use code: 123456')

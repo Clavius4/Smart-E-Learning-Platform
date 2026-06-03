@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require("mongoose");
 const app = express();
 const path = require('path');
 const fileUpload = require('express-fileupload');
@@ -29,8 +30,8 @@ const exportRoutes = require('./routes/exportRoutes');
 app.use(express.json());
 app.use(cookieParser());
 
-// Define allowed origins explicitly
-const allowedOrigins = [
+// Define allowed origins explicitly and allow environment-configured frontend domains
+const defaultAllowedOrigins = [
   'http://206.189.112.134:5173',
   'http://206.189.112.134:5174',
   'http://206.189.112.134:5175',
@@ -42,6 +43,17 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://smartmtn.ac.tz'
 ];
+
+const envFrontendUrls = (process.env.FRONTEND_URLS || '')
+  .split(',')
+  .map(url => url.trim())
+  .filter(Boolean);
+
+const allowedOrigins = [
+  ...defaultAllowedOrigins,
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ...envFrontendUrls
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {

@@ -1,21 +1,8 @@
 import axios from 'axios'
-import { useAuthStore } from '@/stores/auth'
-import router from '@/router'
-
-const rawBaseUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
-const normalizedBaseUrl = (() => {
-  if (!rawBaseUrl) {
-    return 'http://206.189.112.134:5000/api';
-  }
-  if (rawBaseUrl.includes('localhost') || rawBaseUrl.includes('127.0.0.1')) {
-    return 'http://206.189.112.134:5000/api';
-  }
-  const trimmed = rawBaseUrl.replace(/\/$/, '');
-  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
-})();
+import { resolveApiBaseUrl } from '@/utils/apiBaseUrl'
 
 const api = axios.create({
-  baseURL: normalizedBaseUrl,
+  baseURL: resolveApiBaseUrl(),
 
   withCredentials: true, // Keep this consistent
   timeout: 30000,

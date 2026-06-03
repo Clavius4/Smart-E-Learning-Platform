@@ -5,7 +5,6 @@ const Category = require('../models/category');
 const Section = require('../models/section')
 const SubSection = require('../models/subSection')
 const CourseProgress = require('../models/courseProgress')
-
 //const student=require('../models/StudentModels/studentModels');
 
 const { uploadImageToCloudinary, deleteResourceFromCloudinary } = require('../utils/imageUploader');
@@ -604,22 +603,59 @@ exports.editCourse = async (req, res) => {
 // ================ Get a list of Course for a given Instructor ================
 exports.getInstructorCourses = async (req, res) => {
   try {
-    // Get the instructor ID from the authenticated user or request body
+    // Get the instructor ID from the authenticated user
     const instructorId = req.user.id
 
     // Find all courses belonging to the instructor
-    const instructorCourses = await Course.find({ instructor: instructorId, }).sort({ createdAt: -1 })
+    const instructorCourses = await Course.find({ instructor: instructorId })
+      .sort({ createdAt: -1 })
+      .populate({
+        path: 'category',
+        select: 'name description'
+      })
+      .populate({
+        path: 'courseContent',
+        populate: {
+          path: 'subSection',
+          select: 'title timeDuration videoUrl'
+        }
+      })
+      .lean()
 
+    // Calculate total students across all courses
+    const totalStudents = instructorCourses.reduce((acc, course) => {
+      return acc + (course.studentsEnrolled?.length || 0)
+    }, 0)
+
+    // Calculate total duration for each course (optional but useful)
+    const coursesWithDuration = instructorCourses.map(course => {
+      let totalDurationInSeconds = 0
+      
+      if (course.courseContent && Array.isArray(course.courseContent)) {
+        course.courseContent.forEach(section => {
+          if (section.subSection && Array.isArray(section.subSection)) {
+            section.subSection.forEach(sub => {
+              totalDurationInSeconds += parseInt(sub.timeDuration) || 0
+            })
+          }
+        })
+      }
+      
+      return {
+        ...course,
+        totalDuration: convertSecondsToDuration(totalDurationInSeconds)
+      }
+    })
 
     // Return the instructor's courses
     res.status(200).json({
       success: true,
-      data: instructorCourses,
-      totalDurationInSeconds: totalDurationInSeconds,
+      data: coursesWithDuration,
+      totalStudents: totalStudents,
       message: 'Courses made by Instructor fetched successfully'
     })
   } catch (error) {
-    console.error(error)
+    console.error('Error in getInstructorCourses:', error)
     res.status(500).json({
       success: false,
       message: "Failed to retrieve instructor courses",

@@ -5,7 +5,8 @@ const router = express.Router();
 const {
     signup,
     login,
-     verifyOTP,
+    verifyOTP,
+    resendOtp,
     changePassword,
     updateProfile,
     logout,
@@ -26,6 +27,7 @@ router.post('/student/login', login);
 router.post("/logout", logout);
 
 router.post('/student/verify-otp', verifyOTP);
+router.post('/student/resend-otp', resendOtp);
 
 router.post('/student/change-password', authenticate, changePassword);
 
@@ -40,4 +42,3 @@ router.post('/student/personalize', authenticate, updatePersonalization);
 
 
 module.exports=router
-

@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { buildApiUrl } from '@/utils/apiBaseUrl'
 
 export const useQuizStore = defineStore('quiz', () => {
   const api = axios.create({
-    baseURL: 'http://206.189.112.134:5000/api/quizzes', // replace with production URL if needed
+    baseURL: buildApiUrl('/quizzes'),
     withCredentials: false,
     timeout: 15000,
     headers: {

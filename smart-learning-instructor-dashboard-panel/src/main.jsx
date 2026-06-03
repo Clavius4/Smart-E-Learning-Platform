@@ -16,7 +16,10 @@ const store = configureStore({
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <BrowserRouter basename="/instructor">
+  <BrowserRouter
+    basename="/instructor"
+    future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+  >
     <Provider store={store}>
       <React.StrictMode>
         <App />
@@ -25,7 +28,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </Provider>
   </BrowserRouter>
 )
-
 
 
 

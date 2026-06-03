@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import { buildApiUrl } from '@/utils/apiBaseUrl'
 
 export const useCourseStore = defineStore('course', () => {
   const authStore = useAuthStore()
@@ -15,8 +16,7 @@ export const useCourseStore = defineStore('course', () => {
 
   // Configure axios instance
   const api = axios.create({
-    //baseURL: 'http://localhost:5000/api/course',
-    baseURL: 'http://206.189.112.134:5000/api/course',
+    baseURL: buildApiUrl('/course'),
     withCredentials: false,
     timeout: 60000,
     headers: {
@@ -27,8 +27,7 @@ export const useCourseStore = defineStore('course', () => {
 
   // Create a separate instance for profile endpoints
   const profileApi = axios.create({
-    //baseURL: 'http://localhost:5000/api',
-    baseURL: 'http://206.189.112.134:5000/api',
+    baseURL: buildApiUrl(),
     withCredentials: false,
     timeout: 60000,
     headers: {

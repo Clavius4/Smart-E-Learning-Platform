@@ -1,5 +1,10 @@
 // src/contexts/AuthContext.tsx
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import {
+  clearStoredAdminToken,
+  getStoredAdminToken,
+  setStoredAdminToken,
+} from 'utils/authStorage';
 
 interface User {
   id: string;
@@ -18,7 +23,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(getStoredAdminToken());
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -35,9 +40,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const decoded = JSON.parse(jsonPayload);
-        setUser({ ...decoded, role: decoded.accountType || decoded.role }); // Ensure role is mapped
+
+        if (decoded.exp && decoded.exp * 1000 <= Date.now()) {
+          clearStoredAdminToken();
+          setToken(null);
+          setUser(null);
+          return;
+        }
+
+        setUser({
+          ...decoded,
+          role: (decoded.accountType || decoded.role || '').toLowerCase(),
+        });
       } catch (e) {
         console.error("Invalid token", e);
+        clearStoredAdminToken();
+        setToken(null);
         setUser(null);
       }
     } else {
@@ -47,13 +65,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (newToken: string) => {
     setToken(newToken);
-    localStorage.setItem('token', newToken);
+    setStoredAdminToken(newToken);
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('token');
+    clearStoredAdminToken();
   };
 
   return (

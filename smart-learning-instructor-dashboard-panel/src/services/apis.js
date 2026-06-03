@@ -1,5 +1,6 @@
-// export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://206.189.112.134:5000";
-export const BASE_URL = "http://206.189.112.134:5000";
+import { resolveBackendOrigin } from "../utils/backendOrigin";
+
+export const BASE_URL = resolveBackendOrigin();
 // AUTH ENDPOINTS FOR INSTRUCTOR
 export const endpoints = {
   SENDOTP_API: BASE_URL + "/api/auth/sendotp",
@@ -23,7 +24,7 @@ export const studentEndpoints = {
   SEND_PAYMENT_SUCCESS_EMAIL_API: BASE_URL + "/payment/sendPaymentSuccessEmail",
 }
 
-// COURSE ENDPOINTS
+// COURSE ENDPOINTS - FIXED
 export const courseEndpoints = {
   GET_ALL_COURSE_API: BASE_URL + "/api/course/getAllCourses",
   COURSE_DETAILS_API: BASE_URL + "/api/course/getCourseDetails",
@@ -34,7 +35,7 @@ export const courseEndpoints = {
   CREATE_SUBSECTION_API: BASE_URL + "/api/course/addSubSection",
   UPDATE_SECTION_API: BASE_URL + "/api/course/updateSection",
   UPDATE_SUBSECTION_API: BASE_URL + "/api/course/updateSubSection",
-  GET_ALL_INSTRUCTOR_COURSES_API: BASE_URL + "/api/course/getAllCourses",
+  GET_ALL_INSTRUCTOR_COURSES_API: BASE_URL + "/api/course/getInstructorCourses", // FIXED
   DELETE_SECTION_API: BASE_URL + "/api/course/deleteSection",
   DELETE_SUBSECTION_API: BASE_URL + "/api/course/deleteSubSection",
   DELETE_COURSE_API: BASE_URL + "/api/course/deleteCourse",
@@ -80,4 +81,14 @@ export const settingsEndpoints = {
   UPDATE_PROFILE_API: BASE_URL + "/profile/updateProfile",
   CHANGE_PASSWORD_API: BASE_URL + "/auth/changepassword",
   DELETE_PROFILE_API: BASE_URL + "/profile/deleteProfile",
+}
+
+
+// REPORT ENDPOINTS
+export const reportEndpoints = {
+  INSTRUCTOR_DASHBOARD: BASE_URL + "/api/report/dashboard",
+  INSTRUCTOR_PDF: BASE_URL + "/api/report/pdf",
+  STUDENT_REPORT: BASE_URL + "/api/report/student",
+  STUDENT_PDF: BASE_URL + "/api/report/student/pdf",
+  STUDENT_EXCEL: BASE_URL + "/api/report/student/excel",
 }

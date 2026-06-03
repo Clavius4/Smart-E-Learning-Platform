@@ -1,5 +1,16 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { buildApiUrl } from '@/utils/apiBaseUrl'
+
+const api = axios.create({
+  baseURL: buildApiUrl(),
+  withCredentials: false,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json'
+  }
+})
 
 export const useAssessmentStore = defineStore('assessment', {
   state: () => ({
