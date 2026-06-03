@@ -143,7 +143,8 @@ export const useAuthStore = defineStore('auth', () => {
     console.log('[Auth] Attempting registration with:', {
       email: payload.email,
       firstName: payload.firstName,
-      lastName: payload.lastName
+      lastName: payload.lastName,
+      desiredLevel: payload.desiredLevel
     });
 
     try {
@@ -168,7 +169,8 @@ export const useAuthStore = defineStore('auth', () => {
         lastName: payload.lastName.trim(),
         email: payload.email.trim().toLowerCase(),
         password: payload.password,
-        confirmPassword: payload.confirmPassword
+        confirmPassword: payload.confirmPassword,
+        desiredLevel: payload.desiredLevel || 'beginner'
       }, {
         headers: {
           'Content-Type': 'application/json'
