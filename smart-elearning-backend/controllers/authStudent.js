@@ -163,6 +163,16 @@ exports.signup = async (req, res) => {
     try {
         const { firstName, lastName, email, password, confirmPassword } = req.body;
 
+        // Prevent sending personalization data during signup
+        const forbiddenFields = ['learningStyle', 'interests', 'difficultyPreference', 'signLanguage', 'avatar', 'onboardingComplete'];
+        const presentForbidden = forbiddenFields.filter(f => req.body[f] !== undefined);
+        if (presentForbidden.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Personalization fields must be submitted after signup via the onboarding endpoint. Remove: ${presentForbidden.join(', ')}`
+            });
+        }
+
         console.log(`📝 Signup attempt for: ${email}`);
 
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
@@ -253,11 +263,11 @@ exports.signup = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('🔥 Signup Error:', error);
+        console.error('🔥 Signup Error:', error && error.stack ? error.stack : error);
+        const errMsg = error && error.message ? error.message : 'Error registering user';
         res.status(500).json({
             success: false,
-            message: 'Error registering user',
-            error: error.message
+            message: errMsg
         });
     }
 };
