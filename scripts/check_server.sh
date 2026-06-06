@@ -9,12 +9,16 @@ set -euo pipefail
 DEFAULT_BACKEND_DIR="smart-elearning-backend"
 PORT=${PORT:-5000}
 TIMEOUT=${TIMEOUT:-30}
+# Backend host to use for health checks. In production set BACKEND_HOST or PRODUCTION_IP
+BACKEND_HOST=${BACKEND_HOST:-${PRODUCTION_IP:-127.0.0.1}}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="$SCRIPT_DIR/../$DEFAULT_BACKEND_DIR"
 LOGFILE="/tmp/smart-elearning-backend-start.log"
 HEALTH_FILE="/tmp/smart-elearning-backend-health.json"
 
 echo "Backend dir: $BACKEND_DIR"
+echo "Health check host: $BACKEND_HOST (use BACKEND_HOST or PRODUCTION_IP to override)"
 
 if [ ! -d "$BACKEND_DIR" ]; then
   echo "ERROR: Backend directory not found: $BACKEND_DIR"
@@ -41,7 +45,7 @@ trap 'echo "Cleaning up..."; kill $PID 2>/dev/null || true; wait $PID 2>/dev/nul
 count=0
 while [ $count -lt $TIMEOUT ]; do
   if command -v curl >/dev/null 2>&1; then
-    if curl -s -f "http://127.0.0.1:$PORT/api/health" -m 2 -o "$HEALTH_FILE"; then
+    if curl -s -f "http://${BACKEND_HOST}:$PORT/api/health" -m 2 -o "$HEALTH_FILE"; then
       echo "OK: Health endpoint reachable"
       if command -v jq >/dev/null 2>&1; then
         jq '.' "$HEALTH_FILE" || true
