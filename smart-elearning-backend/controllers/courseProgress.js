@@ -286,17 +286,6 @@ const shouldUpdateUserDifficulty = (currentDifficulty, courseLevel) => {
 // Backend Controller - Enhanced updateCourseProgress with User Level Update
 exports.updateCourseProgress = async (req, res) => {
   const ActivityLog = require('../models/ActivityLog');
-
-// Log video progress
-  ActivityLog.log({
-    userId: req.user.id,
-    userModel: 'students',
-    userRole: 'student',
-    action: timeSpent >= MIN_TIME_FOR_COMPLETION ? 'video_complete' : 'video_progress',
-    courseId,
-    metadata: { lessonId, timeSpent, completed: timeSpent >= MIN_TIME_FOR_COMPLETION }
-  }).catch(console.error);
-
   const { courseId, lessonId, timeSpent } = req.body;
   const userId = req.user?.id;
 
@@ -310,6 +299,20 @@ exports.updateCourseProgress = async (req, res) => {
     if (!subsection) return res.status(404).json({ error: "Invalid lesson/subsection" });
 
     const MIN_TIME_FOR_COMPLETION = subsection?.duration ? subsection.duration * 0.8 : 5;
+
+    // Log video progress after validating the request body values
+    ActivityLog.log({
+      userId,
+      userModel: 'students',
+      userRole: 'student',
+      action: Number(timeSpent) >= MIN_TIME_FOR_COMPLETION ? 'video_complete' : 'video_progress',
+      courseId,
+      metadata: {
+        lessonId,
+        timeSpent,
+        completed: Number(timeSpent) >= MIN_TIME_FOR_COMPLETION
+      }
+    }).catch(console.error);
 
     // 2. Get course with sections + subsections (including level)
     const courseDoc = await course.findById(courseId)

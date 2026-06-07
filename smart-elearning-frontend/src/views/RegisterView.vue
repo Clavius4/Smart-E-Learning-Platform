@@ -147,21 +147,7 @@
             />
           </div>
 
-          <div class="mb-10">
-            <label class="block text-purple-800 mb-4 font-black text-2xl flex items-center">
-              <span class="text-4xl mr-4">📚</span> Kiwango cha Kujifunza
-            </label>
-            <select 
-              v-model="form.desiredLevel"
-              class="w-full px-6 py-5 border-4 border-blue-300 rounded-2xl text-2xl font-bold focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-200 transition-all bg-white" 
-              required
-            >
-              <option value="">Chagua kiwango...</option>
-              <option value="beginner">🌱 Mwanzo (Beginner)</option>
-              <option value="intermediate">🌿 Kati (Intermediate)</option>
-              <option value="advanced">🌳 Kaskazi (Advanced)</option>
-            </select>
-          </div>
+          <!-- Difficulty selection moved to onboarding/personalization step -->
 
           <button
             type="submit"
@@ -227,8 +213,7 @@ const form = reactive({
   lastName: '',
   email: '',
   password: '',
-  confirmPassword: '',
-  desiredLevel: 'beginner'
+  confirmPassword: ''
 })
 
 const loading = ref(false)
@@ -293,8 +278,7 @@ const handleRegister = async () => {
       lastName: form.lastName,
       email: form.email,
       password: form.password,
-      confirmPassword: form.confirmPassword,
-      desiredLevel: form.desiredLevel
+      confirmPassword: form.confirmPassword
     });
 
     if (response.success) {

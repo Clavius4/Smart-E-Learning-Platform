@@ -199,28 +199,57 @@ exports.signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const profileDetails = await Profile.create({
-            dateOfBirth: null,
-            about: null,
-        });
+        let profileDetails;
+        try {
+            profileDetails = await Profile.create({
+                dateOfBirth: null,
+                about: null,
+            });
+            console.log('✅ Profile created:', profileDetails._id);
+        } catch (err) {
+            console.error('🔥 Error creating Profile during signup:', err && err.stack ? err.stack : err);
+            return res.status(500).json({ success: false, message: 'Error creating profile record' });
+        }
 
-        const user = await Student.create({
-            firstName,
-            lastName,
-            email,
-            password: hashedPassword,
-            additionalDetails: profileDetails._id,
-            image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName} ${lastName}`,
-            isVerified: false // User needs OTP verification
-        });
+        let user;
+        try {
+            user = await Student.create({
+                firstName,
+                lastName,
+                email,
+                password: hashedPassword,
+                additionalDetails: profileDetails._id,
+                image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName} ${lastName}`,
+                isVerified: false // User needs OTP verification
+            });
+            console.log('✅ Student created:', user._id);
+        } catch (err) {
+            console.error('🔥 Error creating Student during signup:', err && err.stack ? err.stack : err);
+            // Attempt to cleanup profileDetails if user creation failed
+            try {
+                if (profileDetails && profileDetails._id) {
+                    await Profile.findByIdAndDelete(profileDetails._id);
+                    console.log('♻️ Rolled back Profile record due to user creation failure');
+                }
+            } catch (cleanupErr) {
+                console.warn('⚠️ Failed to cleanup Profile after signup error:', cleanupErr && cleanupErr.message ? cleanupErr.message : cleanupErr);
+            }
+            return res.status(500).json({ success: false, message: 'Error creating user account' });
+        }
 
         // Save hardcoded OTP to database for tracking
         const HARDCODED_OTP = '123456';
-        await OTP.create({
-            email,
-            otp: HARDCODED_OTP,
-            purpose: 'signup_verification'
-        });
+        try {
+            await OTP.create({
+                email,
+                otp: HARDCODED_OTP,
+                purpose: 'signup_verification'
+            });
+            console.log('✅ Signup OTP saved');
+        } catch (err) {
+            console.warn('⚠️ Could not save signup OTP:', err && err.message ? err.message : err);
+            // continue even if OTP save fails
+        }
 
         // Send OTP email asynchronously (non-blocking)
         // Use setImmediate to avoid blocking the response
