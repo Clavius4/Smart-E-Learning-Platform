@@ -77,7 +77,7 @@ const userSchema = new mongoose.Schema(
         desiredLevel: {
             type: String,
             enum: ['beginner', 'intermediate', 'advanced'],
-            default: null
+            default: undefined
         },
         signLanguage: {
             type: String,
