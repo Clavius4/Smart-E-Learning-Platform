@@ -3,7 +3,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { X, Image, Plus, ChevronDown } from "lucide-react";
-import { createCourseQuiz, editCourseQuiz } from "../../../../../services/operations/courseDetailsAPI";
+import { createCourseQuiz, editCourseQuiz, getFullDetailsOfCourse } from "../../../../../services/operations/courseDetailsAPI";
 import { setStep } from "../../../../../slices/courseSlice";
 
 const CourseQuiz = ({ editQuiz }) => {
@@ -265,14 +265,23 @@ const CourseQuiz = ({ editQuiz }) => {
 
       console.log("API Result:", result);
 
-      // Temporary aggressive fix - always proceed if no exception was thrown
+      if (result) {
+        // Refresh full course details so UI reflects linked quizzes/subsections
+        try {
+          const updated = await getFullDetailsOfCourse(course._id, token);
+          if (updated) {
+            dispatch(setCourse(updated));
+          }
+        } catch (err) {
+          console.error('Failed to refresh course after saving quiz', err);
+        }
+      }
+
       toast.success("Quiz saved successfully!");
-      console.log("Moving to next step...");
-      
-      // Force navigation to next step after a delay
+      // Proceed to next step
       setTimeout(() => {
         dispatch(setStep(4));
-      }, 1500);
+      }, 800);
     } catch (error) {
       console.error("Error in onSubmit:", error);
       toast.error(`Unexpected error occurred: ${error.message || error}`);

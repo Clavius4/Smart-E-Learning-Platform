@@ -442,7 +442,8 @@ export const createCourseQuiz = async (quizData, token) => {
       throw new Error("Could Not Create Quiz");
     }
 
-    result = response?.data?.data;
+    // backend sometimes returns created quiz under `quiz` or under `data`
+    result = response?.data?.data || response?.data?.quiz;
     toast.success("Quiz Created Successfully");
   } catch (error) {
     console.log("CREATE QUIZ API ERROR............", error);
@@ -470,7 +471,7 @@ export const editCourseQuiz = async (quizData, token) => {
       throw new Error("Could Not Update Quiz");
     }
 
-    result = response?.data?.data;
+    result = response?.data?.data || response?.data?.quiz;
     toast.success("Quiz Updated Successfully");
   } catch (error) {
     console.log("EDIT QUIZ API ERROR............", error);

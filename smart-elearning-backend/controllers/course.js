@@ -291,8 +291,15 @@ exports.getAllCourses = async (req, res) => {
     // Filter courses by student's level
     const allCourses = await Course.find({ level: studentLevel },
       {
-        courseName: true, courseDescription: true, price: true, thumbnail: true, instructor: true,
-        ratingAndReviews: true, studentsEnrolled: true, level: true
+        courseName: true,
+        courseDescription: true,
+        price: true,
+        thumbnail: true,
+        instructor: true,
+        ratingAndReviews: true,
+        studentsEnrolled: true,
+        level: true,
+        quizzes: true,
       })
       .populate({
         path: 'instructor',

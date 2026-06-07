@@ -452,9 +452,14 @@ exports.updateCourseProgress = async (req, res) => {
         nextItem = nextRemedial.subId;
         nextType = "remedial";
       } else {
-        // All remedials completed - back to quiz
-        nextItem = lastQuizAttempt?.quizId || null;
-        nextType = "quiz";
+        // All remedials completed - back to quiz if one exists
+        if (courseDoc.quizzes && courseDoc.quizzes.length > 0) {
+          nextItem = lastQuizAttempt?.quizId || courseDoc.quizzes[0]._id || courseDoc.quizzes[0];
+          nextType = "quiz";
+        } else {
+          nextItem = null;
+          nextType = "completed";
+        }
       }
     } else {
       // Normal mode - show normal lessons
@@ -466,11 +471,12 @@ exports.updateCourseProgress = async (req, res) => {
         nextType = "video";
       } else {
         // All videos completed - assign Quiz if exists
-        nextType = "quiz";
         if (courseDoc.quizzes && courseDoc.quizzes.length > 0) {
+          nextType = "quiz";
           nextItem = courseDoc.quizzes[0]._id || courseDoc.quizzes[0];
         } else {
           nextItem = null;
+          nextType = "completed";
         }
       }
     }
@@ -482,6 +488,11 @@ exports.updateCourseProgress = async (req, res) => {
 
     if (relevantSubsections.length > 0 && completedIds.size >= relevantSubsections.length) {
       courseProgress.completionStatus = courseProgress.needsRemedial ? "remedial_completed" : "completed";
+      if (courseProgress.completionStatus === "completed" || courseProgress.completionStatus === "remedial_completed") {
+        if (!courseDoc.quizzes || courseDoc.quizzes.length === 0) {
+          courseProgress.isCourseCompleted = true;
+        }
+      }
     } else if (completedIds.size > 0) {
       courseProgress.completionStatus = "in_progress";
     }
@@ -504,7 +515,11 @@ exports.updateCourseProgress = async (req, res) => {
     return res.status(200).json({
       message: "Progress updated successfully",
       progress: courseProgress,
-      next: { type: nextType, id: nextItem || null },
+      next: {
+        type: nextType,
+        id: nextItem || null,
+        message: nextType === 'completed' ? 'Course completed. No quiz attached for this course.' : undefined
+      },
       userDifficultyUpdated,
       courseLevel: courseDoc.level,
       debug: {

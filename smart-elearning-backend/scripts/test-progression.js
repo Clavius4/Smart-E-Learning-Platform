@@ -54,7 +54,7 @@ async function runTest() {
         learningStyle: 'numeracy',
         interests: ['counting'],
         difficultyPreference: 'beginner',
-        avatar: 'default.png'
+        avatar: 1
     });
 
     // Note: Onboarding path might be different based on routes, checking previous code... 
