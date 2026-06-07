@@ -190,9 +190,9 @@ const itemsPerPage = 8
 // Fetch courses with error handling
 const fetchCourses = async () => {
   try {
-    await courseStore.fetchRecommendedCourses()
+    await courseStore.fetchAllCourses()
   } catch (error) {
-    console.error('Failed to load recommended courses:', error)
+    console.error('Failed to load courses:', error)
   }
 }
 
