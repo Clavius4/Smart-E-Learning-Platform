@@ -837,8 +837,9 @@ exports.getCoursesForOnboardedUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { learningStyle, interests, difficultyPreference } = user;
-    const formattedLevel = difficultyPreference.charAt(0).toUpperCase() + difficultyPreference.slice(1).toLowerCase();
+    const { learningStyle, interests, difficultyPreference, desiredLevel } = user;
+    const effectiveLevel = (difficultyPreference || desiredLevel || 'beginner').toLowerCase();
+    const formattedLevel = effectiveLevel.charAt(0).toUpperCase() + effectiveLevel.slice(1).toLowerCase();
 
     // 1️⃣ Map learning style to Category Name
     const styleToCategoryMap = {

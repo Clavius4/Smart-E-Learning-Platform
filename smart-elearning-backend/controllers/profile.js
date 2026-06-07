@@ -447,6 +447,7 @@ exports.onBoardDetails = async (req, res) => {
       updateData.difficultyPreference = 'beginner';
       updateData.desiredLevel = null;
     } else if (normalizedDifficulty === 'intermediate' || normalizedDifficulty === 'advanced') {
+      updateData.difficultyPreference = normalizedDifficulty;
       updateData.desiredLevel = normalizedDifficulty;
     }
 

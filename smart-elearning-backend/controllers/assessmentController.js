@@ -383,6 +383,27 @@ exports.submitAssessment = async (req, res) => {
         { difficultyPreference: assessment.level, desiredLevel: null },
         { new: true }
       );
+
+      // Auto-enroll user in the first course of the passed level + matching category
+      try {
+        const Course = require('../models/course');
+        const firstCourse = await Course.findOne({
+          level: assessment.level,
+          category: assessment.category,
+          status: 'Published'
+        }).sort({ order: 1 });
+
+        if (firstCourse) {
+          await Student.findByIdAndUpdate(
+            userId,
+            { $addToSet: { courses: firstCourse._id } },
+            { new: true }
+          );
+          console.log(`✅ Auto-enrolled user ${userId} in course ${firstCourse.courseName}`);
+        }
+      } catch (enrollErr) {
+        console.error('Error auto-enrolling after assessment pass:', enrollErr);
+      }
     }
 
     res.status(200).json({
