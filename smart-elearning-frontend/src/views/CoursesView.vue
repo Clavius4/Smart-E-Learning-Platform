@@ -190,9 +190,9 @@ const itemsPerPage = 8
 // Fetch courses with error handling
 const fetchCourses = async () => {
   try {
-    await courseStore.fetchAllCourses()
+    await courseStore.fetchRecommendedCourses()
   } catch (error) {
-    console.error('Failed to load courses:', error)
+    console.error('Failed to load recommended courses:', error)
   }
 }
 
@@ -202,22 +202,13 @@ const CATEGORY_MAP = {
 }
 
 onMounted(async () => {
-  // Fetch both all courses and enrolled courses in parallel
   await Promise.all([
     fetchCourses(),
     courseStore.fetchEnrolledCourses()
   ])
-  
-  console.log('🎓 Courses loaded:', courseStore.courses?.length)
+
+  console.log('🎓 Recommended courses loaded:', courseStore.courses?.length)
   console.log('📚 Enrolled courses loaded:', courseStore.enrolledCourses?.length)
-  console.log('📋 Enrolled course IDs:', courseStore.enrolledCourses?.map(c => c._id))
-  
-  // NOTE: We do NOT auto-apply filters here because:
-  // 1. The /recommended endpoint already filters by user preferences
-  // 2. Auto-applying filters would hide enrolled courses from other categories/levels
-  // 3. Users should see ALL their enrolled courses regardless of current preferences
-  
-  console.log('ℹ️ Filters left at default (all) to show all courses including enrolled ones')
 })
 
 // Computed properties
