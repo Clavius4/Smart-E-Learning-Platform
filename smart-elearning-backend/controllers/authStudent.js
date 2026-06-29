@@ -9,6 +9,7 @@ const otpTemplate = require('../mail/templates/emailVerificationTemplate');
 const { passwordUpdated } = require("../mail/templates/passwordUpdate");
 const ActivityLog = require('../models/ActivityLog');
 const crypto = require('crypto');
+const { applyCategorySwitch } = require('../utils/levelAccess');
 
 // ================ HARDCODED OTP VERIFICATION ================
 exports.verifyOTP = async (req, res) => {
@@ -124,8 +125,8 @@ exports.resendOtp = async (req, res) => {
             // Continue even if DB save fails
         }
 
-        // Send email with OTP asynchronously (non-blocking)
-        setImmediate(() => {
+        // Send email with OTP asynchronously only when explicitly enabled.
+        if (process.env.SEND_OTP_EMAILS === 'true') setImmediate(() => {
             mailSender(
                 email,
                 "Your Verification Code",
@@ -251,9 +252,9 @@ exports.signup = async (req, res) => {
             // continue even if OTP save fails
         }
 
-        // Send OTP email asynchronously (non-blocking)
-        // Use setImmediate to avoid blocking the response
-        setImmediate(() => {
+        // Send OTP email asynchronously only when explicitly enabled.
+        // Local verification uses the hardcoded 123456 OTP.
+        if (process.env.SEND_OTP_EMAILS === 'true') setImmediate(() => {
             mailSender(
                 email,
                 "Verify Your Account - Action Required",
@@ -628,20 +629,33 @@ exports.updatePersonalization = async (req, res) => {
     try {
         const { learningStyle, interests, difficultyPreference, signLanguage } = req.body;
         const userId = req.user.id;
+        const normalizedDifficulty = difficultyPreference?.toLowerCase();
 
         console.log(`🎨 Personalization update for user: ${userId}`);
 
-        const user = await Student.findByIdAndUpdate(
-            userId,
-            {
-                learningStyle,
-                interests,
-                difficultyPreference,
-                signLanguage,
-                onboardingComplete: true
-            },
-            { new: true }
-        ).select('-password');
+        const student = await Student.findById(userId);
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Category-aware: snapshot/swap per-category level if the style changes.
+        if (learningStyle) applyCategorySwitch(student, learningStyle);
+
+        if (interests !== undefined) student.interests = interests;
+        if (signLanguage !== undefined) student.signLanguage = signLanguage;
+        student.onboardingComplete = true;
+
+        // Always start at beginner; a higher pick is a target to prove via assessment.
+        if (normalizedDifficulty === 'intermediate' || normalizedDifficulty === 'advanced') {
+            student.difficultyPreference = 'beginner';
+            student.desiredLevel = normalizedDifficulty;
+        } else if (normalizedDifficulty === 'beginner') {
+            student.difficultyPreference = 'beginner';
+            student.desiredLevel = null;
+        }
+
+        await student.save();
+        const user = await Student.findById(userId).select('-password');
 
         console.log(`✅ Personalization updated for user: ${userId}`);
         res.status(200).json({

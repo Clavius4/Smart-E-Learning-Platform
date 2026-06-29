@@ -16,6 +16,10 @@ const subSectionSchema = new mongoose.Schema({
     videoUrl: {
         type: String
     },
+    order: {
+        type: Number,
+        default: 0
+    },
   // NEW FIELDS
     isRemedial: {
         type: Boolean,

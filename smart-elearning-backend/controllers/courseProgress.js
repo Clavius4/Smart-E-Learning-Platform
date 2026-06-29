@@ -4,6 +4,7 @@ const SubSection = require("../models/subSection")
 const CourseProgress = require("../models/courseProgress")
 const course = require("../models/course")
 const User = require("../models/StudentModels/studentModels")
+const { parseDurationSeconds } = require("../utils/duration")
 
 // ================ update Course Progress ================
 
@@ -286,7 +287,7 @@ const shouldUpdateUserDifficulty = (currentDifficulty, courseLevel) => {
 // Backend Controller - Enhanced updateCourseProgress with User Level Update
 exports.updateCourseProgress = async (req, res) => {
   const ActivityLog = require('../models/ActivityLog');
-  const { courseId, lessonId, timeSpent } = req.body;
+  const { courseId, lessonId, timeSpent, completed } = req.body;
   const userId = req.user?.id;
 
   if (!courseId || !lessonId) {
@@ -298,19 +299,26 @@ exports.updateCourseProgress = async (req, res) => {
     const subsection = await SubSection.findById(lessonId);
     if (!subsection) return res.status(404).json({ error: "Invalid lesson/subsection" });
 
-    const MIN_TIME_FOR_COMPLETION = subsection?.duration ? subsection.duration * 0.8 : 5;
+    const durationSeconds = parseDurationSeconds(subsection?.timeDuration);
+    const MIN_TIME_FOR_COMPLETION = durationSeconds > 0 ? durationSeconds * 0.8 : 5;
+
+    // A lesson counts as completed when the client explicitly signals it (the
+    // video reached its end) OR enough watch time was reported. The explicit
+    // flag avoids false negatives when a subsection's stored timeDuration does
+    // not match the real clip length.
+    const lessonCompleted = completed === true || Number(timeSpent) >= MIN_TIME_FOR_COMPLETION;
 
     // Log video progress after validating the request body values
     ActivityLog.log({
       userId,
       userModel: 'students',
       userRole: 'student',
-      action: Number(timeSpent) >= MIN_TIME_FOR_COMPLETION ? 'video_complete' : 'video_progress',
+      action: lessonCompleted ? 'video_complete' : 'video_progress',
       courseId,
       metadata: {
         lessonId,
         timeSpent,
-        completed: Number(timeSpent) >= MIN_TIME_FOR_COMPLETION
+        completed: lessonCompleted
       }
     }).catch(console.error);
 
@@ -374,7 +382,7 @@ exports.updateCourseProgress = async (req, res) => {
       vid => vid.subsectionId?.toString() === lessonId
     );
 
-    if (timeSpent >= MIN_TIME_FOR_COMPLETION) {
+    if (lessonCompleted) {
       if (existingVideo) {
         existingVideo.timeSpent = Math.max(existingVideo.timeSpent, timeSpent);
       } else {
@@ -404,6 +412,7 @@ exports.updateCourseProgress = async (req, res) => {
           sectionId: sec._id,
           subId: sub._id.toString(),
           isRemedial: sub.isRemedial || false,
+          linkedQuiz: sub.linkedQuiz ? sub.linkedQuiz.toString() : null,
           hasVideo: !!sub.videoUrl
         });
       });
@@ -433,10 +442,14 @@ exports.updateCourseProgress = async (req, res) => {
     // 11. Determine next lesson logic
     let nextItem = null;
     let nextType = null;
+    let nextSubSectionId = null;
 
     const completedIds = new Set(courseProgress.completedVideos
-      .filter(v => v.timeSpent >= MIN_TIME_FOR_COMPLETION)
+      .filter(v => v.subsectionId)
       .map(v => v.subsectionId.toString()));
+    const passedQuizIds = new Set((courseProgress.passedLevelQuiz || [])
+      .filter(q => q.quizId)
+      .map(q => q.quizId.toString()));
 
     if (courseProgress.needsRemedial) {
       // In remedial mode - only show remedial lessons
@@ -464,16 +477,26 @@ exports.updateCourseProgress = async (req, res) => {
     } else {
       // Normal mode - show normal lessons
       const normalSubsections = flatSubsections.filter(s => !s.isRemedial && s.hasVideo);
-      const nextNormal = normalSubsections.find(n => !completedIds.has(n.subId));
+      for (const normalSubsection of normalSubsections) {
+        if (!completedIds.has(normalSubsection.subId)) {
+          nextItem = normalSubsection.subId;
+          nextType = "video";
+          break;
+        }
 
-      if (nextNormal) {
-        nextItem = nextNormal.subId;
-        nextType = "video";
-      } else {
-        // All videos completed - assign Quiz if exists
-        if (courseDoc.quizzes && courseDoc.quizzes.length > 0) {
+        if (normalSubsection.linkedQuiz && !passedQuizIds.has(normalSubsection.linkedQuiz)) {
+          nextItem = normalSubsection.linkedQuiz;
           nextType = "quiz";
-          nextItem = courseDoc.quizzes[0]._id || courseDoc.quizzes[0];
+          nextSubSectionId = normalSubsection.subId;
+          break;
+        }
+      }
+
+      if (!nextType) {
+        const courseQuiz = (courseDoc.quizzes || []).find(q => !passedQuizIds.has((q._id || q).toString()));
+        if (courseQuiz) {
+          nextType = "quiz";
+          nextItem = courseQuiz._id || courseQuiz;
         } else {
           nextItem = null;
           nextType = "completed";
@@ -485,8 +508,10 @@ exports.updateCourseProgress = async (req, res) => {
     const relevantSubsections = courseProgress.needsRemedial
       ? flatSubsections.filter(s => s.isRemedial && s.hasVideo)
       : flatSubsections.filter(s => !s.isRemedial && s.hasVideo);
+    const relevantSubsectionIds = new Set(relevantSubsections.map(s => s.subId));
+    const relevantCompletedCount = [...completedIds].filter(id => relevantSubsectionIds.has(id)).length;
 
-    if (relevantSubsections.length > 0 && completedIds.size >= relevantSubsections.length) {
+    if (relevantSubsections.length > 0 && relevantCompletedCount >= relevantSubsections.length) {
       courseProgress.completionStatus = courseProgress.needsRemedial ? "remedial_completed" : "completed";
       if (courseProgress.completionStatus === "completed" || courseProgress.completionStatus === "remedial_completed") {
         if (!courseDoc.quizzes || courseDoc.quizzes.length === 0) {
@@ -503,7 +528,7 @@ exports.updateCourseProgress = async (req, res) => {
     // 14. Debug logging
     console.log(`Progress Update Debug:
       - Current lesson: ${lessonId}
-      - Completed videos: ${completedIds.size}
+      - Completed videos: ${relevantCompletedCount}
       - Remedial mode: ${courseProgress.needsRemedial}
       - Next type: ${nextType}
       - Next ID: ${nextItem}
@@ -518,6 +543,7 @@ exports.updateCourseProgress = async (req, res) => {
       next: {
         type: nextType,
         id: nextItem || null,
+        subSectionId: nextSubSectionId,
         message: nextType === 'completed' ? 'Course completed. No quiz attached for this course.' : undefined
       },
       userDifficultyUpdated,

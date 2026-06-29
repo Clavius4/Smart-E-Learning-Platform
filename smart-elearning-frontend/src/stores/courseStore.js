@@ -270,13 +270,14 @@ export const useCourseStore = defineStore('course', () => {
     }
   };
 
-  const updateCourseProgress = async (courseId, lessonId, timeSpent = 0) => {
+  const updateCourseProgress = async (courseId, lessonId, timeSpent = 0, completed = false) => {
     try {
       const token = localStorage.getItem('token')
       const response = await profileApi.post('course/profile/update-progress', {
         courseId,
         lessonId,
-        timeSpent
+        timeSpent,
+        completed
       }, {
         headers: { Authorization: `Bearer ${token}` }
       })

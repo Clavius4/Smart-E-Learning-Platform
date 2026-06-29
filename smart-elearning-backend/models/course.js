@@ -51,7 +51,7 @@ const courseSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['Draft', 'Published'],
-        default:"Published",
+        default:"Draft",
     },
     quizzes: [{
          type: mongoose.Schema.Types.ObjectId, 

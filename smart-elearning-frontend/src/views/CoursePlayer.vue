@@ -283,9 +283,14 @@ const handleVideoPause = () => {
   }
 }
 
-const handleVideoEnded = () => {
+const handleVideoEnded = (event) => {
   handleVideoPause()
-  markLessonCompleted(lessonWatchedSeconds.value)
+  // The video reached its end → it is genuinely watched. Report the real video
+  // duration (not the fragile wall-clock count, which under-counts on autoplay/
+  // buffering/tab-switch) so the backend reliably marks it complete and returns
+  // the NEXT item instead of replaying this one.
+  const watched = Math.ceil(event?.target?.duration || 0) || lessonWatchedSeconds.value
+  markLessonCompleted(watched, true) // ended => definitively completed
 }
 
 // Computed properties
@@ -297,14 +302,29 @@ const currentLesson = computed(() => {
   return currentSection.value.lessons?.[currentLessonIndex.value] || {}
 })
 
+const getCompletedSubsectionId = (entry) => {
+  const id = entry?.subsectionId?._id || entry?.subsectionId || entry?._id || entry
+  return id ? String(id) : null
+}
+
+const completedVideoIds = computed(() => {
+  return new Set(
+    (course.value.completedVideos || [])
+      .map(getCompletedSubsectionId)
+      .filter(Boolean)
+  )
+})
+
+const isLessonCompletedById = (lessonId) => {
+  return completedVideoIds.value.has(String(lessonId))
+}
+
 const hasQuizzes = computed(() => {
   return (course.value.quizzes?.length > 0) || hasQuizExternal.value
 })
 
 const isLessonCompleted = computed(() => {
-  return course.value.completedVideos?.some(
-    v => v.subsectionId === currentLesson.value._id
-  ) || false
+  return currentLesson.value._id ? isLessonCompletedById(currentLesson.value._id) : false
 })
 
 const totalVideoCount = computed(() => {
@@ -315,7 +335,12 @@ const totalVideoCount = computed(() => {
 })
 
 const completedVideoCount = computed(() => {
-  return course.value.completedVideos?.length || 0
+  return course.value.courseContent?.reduce((count, section) => {
+    const completedLessons = section.lessons?.filter(lesson =>
+      lesson.videoUrl && isLessonCompletedById(lesson._id)
+    )?.length || 0
+    return count + completedLessons
+  }, 0) || 0
 })
 
 const totalCourseProgress = computed(() => {
@@ -378,9 +403,26 @@ const loadCourseData = async () => {
       }
     }
 
-    // If no remedial lesson found or not in remedial mode, find first normal lesson
+    // If no remedial lesson found or not in remedial mode, find first unfinished normal lesson
     if (!firstLesson) {
-      console.log('📖 Looking for first normal lesson')
+      console.log('📖 Looking for first unfinished normal lesson')
+      const completedIds = new Set((data.completedVideos || []).map(getCompletedSubsectionId).filter(Boolean))
+      for (let sIndex = 0; sIndex < course.value.courseContent.length; sIndex++) {
+        const section = course.value.courseContent[sIndex]
+        for (let lIndex = 0; lIndex < section.lessons.length; lIndex++) {
+          const lesson = section.lessons[lIndex]
+          if (!lesson.isRemedial && !completedIds.has(String(lesson._id))) {
+            firstLesson = lesson
+            sectionIndex = sIndex
+            lessonIndex = lIndex
+            break
+          }
+        }
+        if (firstLesson) break
+      }
+    }
+
+    if (!firstLesson) {
       for (let sIndex = 0; sIndex < course.value.courseContent.length; sIndex++) {
         const section = course.value.courseContent[sIndex]
         for (let lIndex = 0; lIndex < section.lessons.length; lIndex++) {
@@ -444,26 +486,40 @@ const handleVideoProgress = (event) => {
   videoProgress.value = progress
   
   if (progress > 99.5 && !isVideoCompleted.value && !isProcessingCompletion.value && authStore.isAuthenticated) {
-    handleVideoPause() 
-    markLessonCompleted(lessonWatchedSeconds.value)
+    handleVideoPause()
+    // Reached the end of the clip => definitively completed.
+    markLessonCompleted(Math.ceil(video.duration || 0) || lessonWatchedSeconds.value, true)
   }
 }
 
-const markLessonCompleted = async (timeSpent) => {
+const openQuiz = (quizId = null, subSectionId = null) => {
+  const query = {}
+  if (quizId) query.quizId = String(quizId)
+  if (subSectionId) query.subSectionId = String(subSectionId)
+
+  return router.push({
+    name: 'QuizPage',
+    params: { id: route.params.id },
+    query
+  })
+}
+
+const markLessonCompleted = async (timeSpent, completed = false) => {
   try {
     if (!currentLesson.value._id || isVideoCompleted.value || isProcessingCompletion.value) {
       console.log('⚠️ Skipping completion - already processing or completed')
       return
     }
 
-    console.log(`🏁 Marking lesson completed: ${currentLesson.value._id} with ${timeSpent}s`)
+    console.log(`🏁 Marking lesson completed: ${currentLesson.value._id} with ${timeSpent}s (completed=${completed})`)
     isProcessingCompletion.value = true
     isVideoCompleted.value = true
 
     const result = await courseStore.updateCourseProgress(
       route.params.id,
       currentLesson.value._id,
-      timeSpent
+      timeSpent,
+      completed
     )
 
     console.log('📊 Backend response:', result)
@@ -487,46 +543,27 @@ const markLessonCompleted = async (timeSpent) => {
         await loadCourseData()
         setTimeout(() => goToNextLesson(id), 1500)
       } else if (type === "video" && id) {
-        console.log(`🎬 Auto-navigating to next video: ${id}`)
-        setTimeout(() => goToNextLesson(id), 1500)
+        if (String(id) === String(currentLesson.value._id)) {
+          // Safety net: backend returned THIS video as "next" (e.g. stored
+          // timeDuration doesn't match the real clip). Advance locally so the
+          // player never gets stuck replaying the same lesson.
+          console.warn('⚠️ Backend returned the current video as next — advancing locally to avoid a replay loop')
+          advanceLocally()
+        } else {
+          console.log(`🎬 Auto-navigating to next video: ${id}`)
+          setTimeout(() => goToNextLesson(id), 1500)
+        }
       } else if (type === "quiz") {
         console.log('🎯 Redirecting to quiz...')
         isRedirectingToQuiz.value = true
-        setTimeout(() => router.push(`/course/${route.params.id}/quiz`), 2000)
+        setTimeout(() => openQuiz(id, result.next.subSectionId || currentLesson.value._id), 2000)
       } else {
         console.log('✅ Course completed or no explicit next lesson from backend!')
       }
     } else {
       // Fallback: If backend doesn't provide next lesson, calculate it locally
       console.log('⚠️ No next lesson info from backend, trying local calculation...')
-      
-      let nextSection = currentSectionIndex.value
-      let nextLesson = currentLessonIndex.value + 1
-      
-      // Check if current section has more lessons
-      const currentSectionContent = course.value.courseContent?.[nextSection]
-      
-      if (currentSectionContent?.lessons?.[nextLesson]) {
-        // Go to next lesson in same section
-        console.log('👉 Local: Found next lesson in same section')
-        setTimeout(() => changeLesson(nextSection, nextLesson), 1500)
-      } else {
-        // Try next section
-        nextSection++
-        nextLesson = 0
-        const nextSectionContent = course.value.courseContent?.[nextSection]
-        
-        if (nextSectionContent?.lessons?.[nextLesson]) {
-          // Go to first lesson of next section
-          console.log('👉 Local: Found next lesson in next section')
-          setTimeout(() => changeLesson(nextSection, nextLesson), 1500)
-        } else if (hasQuizzes.value) {
-          // No more videos, go to quiz
-          console.log('🎯 Local: All videos done, going to quiz')
-          isRedirectingToQuiz.value = true
-          setTimeout(() => router.push(`/course/${route.params.id}/quiz`), 2000)
-        }
-      }
+      advanceLocally()
     }
 
   } catch (err) {
@@ -534,6 +571,32 @@ const markLessonCompleted = async (timeSpent) => {
     isVideoCompleted.value = false
   } finally {
     isProcessingCompletion.value = false
+  }
+}
+
+// Advance to the next lesson by position (next lesson → next section → quiz).
+// Used as a fallback and as the loop safety-net.
+const advanceLocally = () => {
+  let nextSection = currentSectionIndex.value
+  let nextLesson = currentLessonIndex.value + 1
+
+  if (course.value.courseContent?.[nextSection]?.lessons?.[nextLesson]) {
+    console.log('👉 Local: next lesson in same section')
+    setTimeout(() => changeLesson(nextSection, nextLesson), 1500)
+    return
+  }
+
+  nextSection++
+  nextLesson = 0
+  if (course.value.courseContent?.[nextSection]?.lessons?.[nextLesson]) {
+    console.log('👉 Local: first lesson of next section')
+    setTimeout(() => changeLesson(nextSection, nextLesson), 1500)
+  } else if (hasQuizzes.value) {
+    console.log('🎯 Local: all videos done, going to quiz')
+    isRedirectingToQuiz.value = true
+    setTimeout(() => openQuiz(), 2000)
+  } else {
+    console.log('✅ Local: no further lessons or quiz — course complete')
   }
 }
 
@@ -557,7 +620,7 @@ const goToNextLesson = (lessonId) => {
 
 const startQuiz = () => {
   if (hasQuizzes.value) {
-    router.push(`/course/${route.params.id}/quiz`)
+    openQuiz()
   }
 }
 
@@ -851,12 +914,12 @@ onMounted(() => {
                       class="lesson-item"
                       :class="{
                         'active': currentSectionIndex === sIndex && currentLessonIndex === lIndex,
-                        'completed': course.completedVideos?.includes(lesson._id)
+                        'completed': isLessonCompletedById(lesson._id)
                       }"
                     >
                       <div class="lesson-indicator">
                         <div class="lesson-circle">
-                          <span v-if="course.completedVideos?.includes(lesson._id)" class="lesson-emoji">✅</span>
+                          <span v-if="isLessonCompletedById(lesson._id)" class="lesson-emoji">✅</span>
                           <span v-else-if="currentSectionIndex === sIndex && currentLessonIndex === lIndex" class="lesson-emoji">▶️</span>
                           <span v-else class="lesson-number">{{ lIndex + 1 }}</span>
                         </div>
@@ -876,7 +939,7 @@ onMounted(() => {
                             <div class="wave"></div>
                           </div>
                         </div>
-                        <div v-if="course.completedVideos?.includes(lesson._id)" class="completion-stars">
+                        <div v-if="isLessonCompletedById(lesson._id)" class="completion-stars">
                           <span class="star">⭐</span>
                           <span class="star">⭐</span>
                           <span class="star">⭐</span>

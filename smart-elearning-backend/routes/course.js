@@ -5,6 +5,32 @@ const Course = require('../models/course'); // Adjust path as needed
 // Add these at the top of the file
 // const Enrollment = require('../models/Enrollment'); // Make sure this path is correct
 const CourseProgress = require('../models/courseProgress'); // Make sure this path is correct
+const durationUtils = require('../utils/duration');
+const { canAccessLevel, nextRequiredLevel } = require('../utils/levelAccess');
+
+const COURSE_CATEGORY_TO_ASSESSMENT = {
+  kusoma: 'literacy',
+  kuandika: 'numeracy',
+  kuhesabu: 'numeracy'
+};
+
+function hasPassedAssessment(student, progress, level, category) {
+  const normalizedLevel = level?.toLowerCase();
+  const passedOnStudent = student?.passedAssessments?.some(
+    (entry) =>
+      entry.level === normalizedLevel &&
+      (!category || entry.category === category)
+  );
+
+  const passedInProgress = progress?.passedLevelQuiz?.some(
+    (entry) =>
+      entry.passed === true &&
+      entry.level === normalizedLevel &&
+      (!category || entry.category === category)
+  );
+
+  return Boolean(passedOnStudent || passedInProgress);
+}
 
 // Move the helper function to the top
 function convertSecondsToDuration(totalSeconds) {
@@ -420,12 +446,29 @@ router.get('/getFullCourseDetails/:courseId', authenticate, async (req, res) => 
         path: 'courseContent',
         populate: {
           path: 'subSection',
-          select: 'title timeDuration description videoUrl isRemedial order'
+          select: 'title timeDuration description videoUrl isRemedial order linkedQuiz'
         }
       })
       .lean();
 
     if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    // Universal level gate: applies to EVERY student, by proven level.
+    if (course.level !== 'Beginner') {
+      const student = await require('../models/StudentModels/studentModels')
+        .findById(userId)
+        .select('difficultyPreference');
+
+      if (!canAccessLevel(student, course.level)) {
+        const requiredLevel = nextRequiredLevel(student);
+        return res.status(403).json({
+          success: false,
+          message: `Access to ${course.level} content is locked. Pass the ${requiredLevel} assessment to continue.`,
+          requireQuiz: true,
+          requiredLevel,
+        });
+      }
+    }
 
     // Get user progress
     let completedVideos = [];
@@ -475,16 +518,17 @@ router.get('/getFullCourseDetails/:courseId', authenticate, async (req, res) => 
           }
         })
         .map(sub => {
-          const duration = parseFloat(sub.timeDuration) || 0;
+          const duration = durationUtils.parseDurationSeconds(sub.timeDuration);
           totalDurationInSeconds += duration;
 
           return {
             _id: sub._id,
             title: sub.title,
             videoUrl: sub.videoUrl,
-            duration: formatDuration(duration),
+            duration: durationUtils.formatDuration(duration),
             description: sub.description,
-            isRemedial: sub.isRemedial || false
+            isRemedial: sub.isRemedial || false,
+            linkedQuiz: sub.linkedQuiz || null
           };
         });
 
@@ -508,7 +552,7 @@ router.get('/getFullCourseDetails/:courseId', authenticate, async (req, res) => 
       data: {
         ...course,
         courseContent: transformedContent,
-        totalDuration: formatDuration(totalDurationInSeconds),
+        totalDuration: durationUtils.formatDuration(totalDurationInSeconds),
         completedVideos,
         isEnrolled: course.studentsEnrolled.some(id => id.toString() === userId),
         isInRemedialMode, // NEW: Send remedial mode status

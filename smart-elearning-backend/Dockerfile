@@ -22,9 +22,6 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p tmp logs
 
-# Copy environment file
-COPY .env ./
-
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=5000

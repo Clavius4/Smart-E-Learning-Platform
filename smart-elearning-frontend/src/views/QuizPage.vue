@@ -548,6 +548,8 @@ const route = useRoute()
 const router = useRouter()
 const quizStore = useQuizStore()
 
+const firstQueryValue = (value) => Array.isArray(value) ? value[0] : value
+
 // State
 const loading = ref(true)
 const error = ref(null)
@@ -697,7 +699,10 @@ const loadQuizData = async () => {
     loading.value = true
     error.value = null
     
-    const quizData = await quizStore.fetchQuizByCourseId(route.params.id)
+    const quizData = await quizStore.fetchQuizByCourseId(route.params.id, {
+      quizId: firstQueryValue(route.query.quizId),
+      subSectionId: firstQueryValue(route.query.subSectionId)
+    })
     quiz.value = quizData
     
     // Initialize selected answers

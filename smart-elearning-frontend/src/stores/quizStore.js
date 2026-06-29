@@ -40,16 +40,19 @@ export const useQuizStore = defineStore('quiz', () => {
   }
 
   // ------------------ Fetch Quiz ------------------
-  const fetchQuizByCourseId = async (courseId) => {
+  const fetchQuizByCourseId = async (courseId, options = {}) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) throw new Error('Authentication token not found')
 
       const headers = { Authorization: `Bearer ${token}` }
+      const params = {}
+      if (options.quizId) params.quizId = options.quizId
+      if (options.subSectionId) params.subSectionId = options.subSectionId
       let data
 
       // Try endpoint: /quiz/{courseId}
-      const response = await api.get(`/quiz/${courseId}`, { headers })
+      const response = await api.get(`/quiz/${courseId}`, { headers, params })
       data = response.data
 
       if (!data || !data.success) throw new Error(data?.message || 'Failed to fetch quiz')

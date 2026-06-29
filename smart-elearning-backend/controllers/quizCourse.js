@@ -2,15 +2,103 @@ const Quiz = require('../models/quiz');
 const CourseProgress = require('../models/courseProgress')
 const Course = require('../models/course')
 const SubSection = require('../models/subSection');
+const mongoose = require('mongoose');
 
 const { QuestionuploadImageToCloudinary } = require('../utils/imageUploader');
+const { assessmentCategoryOfStyle } = require('../utils/levelAccess');
 // ================ quiz course ================
+
+function flattenCourseSubsections(courseDoc) {
+  const items = [];
+
+  (courseDoc.courseContent || []).forEach((section) => {
+    (section.subSection || [])
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .forEach((subSection) => {
+        items.push({
+          sectionId: section._id,
+          subSection,
+          subId: subSection._id.toString(),
+          isRemedial: Boolean(subSection.isRemedial),
+          linkedQuiz: subSection.linkedQuiz ? subSection.linkedQuiz.toString() : null,
+          hasVideo: Boolean(subSection.videoUrl)
+        });
+      });
+  });
+
+  return items;
+}
+
+function getPassedQuizIds(courseProgress) {
+  return new Set(
+    (courseProgress?.passedLevelQuiz || [])
+      .filter((entry) => entry.quizId)
+      .map((entry) => entry.quizId.toString())
+  );
+}
+
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function getCompletedSubsectionIds(courseProgress) {
+  return new Set(
+    (courseProgress?.completedVideos || [])
+      .filter((entry) => entry.subsectionId)
+      .map((entry) => entry.subsectionId.toString())
+  );
+}
+
+function allRequiredCourseWorkComplete(courseDoc, courseProgress) {
+  const flatSubsections = flattenCourseSubsections(courseDoc);
+  const completedSubsections = getCompletedSubsectionIds(courseProgress);
+  const passedQuizzes = getPassedQuizIds(courseProgress);
+  const normalSubsections = flatSubsections.filter((item) => !item.isRemedial && item.hasVideo);
+
+  const allVideosComplete = normalSubsections.every((item) => completedSubsections.has(item.subId));
+  const linkedQuizIds = normalSubsections
+    .map((item) => item.linkedQuiz)
+    .filter(Boolean);
+  const allLinkedQuizzesPassed = linkedQuizIds.every((quizId) => passedQuizzes.has(quizId));
+  const hasLinkedQuizzes = linkedQuizIds.length > 0;
+  const hasCourseLevelQuiz = (courseDoc.quizzes || []).length > 0;
+
+  if (hasLinkedQuizzes) {
+    return allVideosComplete && allLinkedQuizzesPassed;
+  }
+
+  return allVideosComplete && (!hasCourseLevelQuiz || (courseDoc.quizzes || []).some((quizId) => passedQuizzes.has(quizId.toString())));
+}
+
+function getNextNormalLearningItem(courseDoc, courseProgress) {
+  const flatSubsections = flattenCourseSubsections(courseDoc);
+  const completedSubsections = getCompletedSubsectionIds(courseProgress);
+  const passedQuizzes = getPassedQuizIds(courseProgress);
+
+  for (const item of flatSubsections) {
+    if (item.isRemedial || !item.hasVideo) continue;
+    if (!completedSubsections.has(item.subId)) {
+      return { type: 'video', id: item.subId };
+    }
+    if (item.linkedQuiz && !passedQuizzes.has(item.linkedQuiz)) {
+      return { type: 'quiz', id: item.linkedQuiz };
+    }
+  }
+
+  const courseQuiz = (courseDoc.quizzes || []).find((quizId) => !passedQuizzes.has(quizId.toString()));
+  if (courseQuiz) {
+    return { type: 'quiz', id: courseQuiz.toString() };
+  }
+
+  return { type: 'completed', id: null };
+}
 
 
 
 exports.createQuiz = async (req, res) => {
   try {
-    const { courseId, questions } = req.body; // ✅ added subSectionId
+    const { courseId, subSectionId, questions } = req.body;
     const instructorId = req.user.id;
 
     if (!courseId || !questions || !Array.isArray(questions)) {
@@ -139,9 +227,25 @@ exports.createQuiz = async (req, res) => {
 
     }
 
-    const course = await Course.findById(courseId);
+    const course = await Course.findById(courseId)
+      .populate({
+        path: 'courseContent',
+        populate: { path: 'subSection' }
+      });
     if (!course) {
       return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    let targetSubSection = null;
+    if (subSectionId) {
+      targetSubSection = flattenCourseSubsections(course).find((item) => item.subId === subSectionId);
+
+      if (!targetSubSection) {
+        return res.status(400).json({
+          success: false,
+          message: 'SubSection does not belong to this course'
+        });
+      }
     }
 
     const newQuiz = await Quiz.create({
@@ -150,23 +254,13 @@ exports.createQuiz = async (req, res) => {
       questions: updatedQuestions,
     });
 
-    course.quizzes.push(newQuiz._id);
+    if (!course.quizzes.some((quizId) => quizId.toString() === newQuiz._id.toString())) {
+      course.quizzes.push(newQuiz._id);
+    }
     await course.save();
 
-    // 2️⃣ Loop through all sections in courseContent
-    for (const sectionId of course.courseContent) {
-      // 3️⃣ Find non-remedial subsections with no linked quiz
-      const subsectionsToLink = await SubSection.find({
-        section: sectionId,
-        isRemedial: false,
-        linkedQuiz: null
-      });
-
-      // 4️⃣ Link them
-      for (const sub of subsectionsToLink) {
-        sub.linkedQuiz = newQuiz._id;
-        await sub.save();
-      }
+    if (targetSubSection) {
+      await SubSection.findByIdAndUpdate(subSectionId, { linkedQuiz: newQuiz._id });
     }
 
 
@@ -260,6 +354,10 @@ exports.deleteQuiz = async (req, res) => {
     await Course.findByIdAndUpdate(quiz.courseId, {
       $pull: { quizzes: quiz._id }
     });
+    await SubSection.updateMany(
+      { linkedQuiz: quiz._id },
+      { $set: { linkedQuiz: null } }
+    );
 
     res.status(200).json({ success: true, message: "Quiz deleted successfully" });
   } catch (error) {
@@ -273,10 +371,16 @@ exports.deleteQuiz = async (req, res) => {
 exports.accessQuiz = async (req, res) => {
   try {
     const { courseId } = req.params;
+    const subSectionId = firstQueryValue(req.query.subSectionId);
+    const requestedQuizId = firstQueryValue(req.query.quizId);
     const userId = req.user.id;
 
     // 1. Check if course exists and has quizzes
-    const course = await Course.findById(courseId);
+    const course = await Course.findById(courseId)
+      .populate({
+        path: 'courseContent',
+        populate: { path: 'subSection' }
+      });
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -284,7 +388,9 @@ exports.accessQuiz = async (req, res) => {
       });
     }
 
-    if (!course.quizzes || course.quizzes.length === 0) {
+    const flatSubsections = flattenCourseSubsections(course);
+    const hasLinkedQuizzes = flatSubsections.some((item) => item.linkedQuiz);
+    if ((!course.quizzes || course.quizzes.length === 0) && !hasLinkedQuizzes) {
       return res.status(404).json({
         success: false,
         message: 'No quiz available for this course'
@@ -304,8 +410,52 @@ exports.accessQuiz = async (req, res) => {
       });
     }
 
+    let quizId = null;
+    if (requestedQuizId) {
+      if (!mongoose.Types.ObjectId.isValid(requestedQuizId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid quiz ID'
+        });
+      }
+
+      const courseQuizIds = new Set([
+        ...(course.quizzes || []).map((id) => (id._id || id).toString()),
+        ...flatSubsections.map((item) => item.linkedQuiz).filter(Boolean)
+      ]);
+
+      if (!courseQuizIds.has(requestedQuizId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Quiz does not belong to this course'
+        });
+      }
+
+      quizId = requestedQuizId;
+    } else if (subSectionId) {
+      const targetSubSection = flatSubsections.find((item) => item.subId === subSectionId);
+      if (!targetSubSection) {
+        return res.status(400).json({
+          success: false,
+          message: 'SubSection does not belong to this course'
+        });
+      }
+
+      quizId = targetSubSection.linkedQuiz;
+    } else {
+      const next = getNextNormalLearningItem(course, progress);
+      quizId = next.type === 'quiz' ? next.id : (course.quizzes[0]?._id || course.quizzes[0]);
+    }
+
+    if (!quizId) {
+      return res.status(404).json({
+        success: false,
+        message: 'No quiz is linked to this lesson yet'
+      });
+    }
+
     // 3. Get the quiz
-    const quiz = await Quiz.findById(course.quizzes[0]);
+    const quiz = await Quiz.findById(quizId);
     if (!quiz) {
       return res.status(404).json({
         success: false,
@@ -352,7 +502,13 @@ exports.submitQuiz = async (req, res) => {
   let levelChanged = false;
 
   try {
-    const quiz = await Quiz.findById(quizId).populate("courseId");
+    const quiz = await Quiz.findById(quizId).populate({
+      path: "courseId",
+      populate: {
+        path: "courseContent",
+        populate: { path: "subSection" }
+      }
+    });
     if (!quiz) return res.status(404).json({ message: "Quiz not found" });
 
     if (!answers || answers.length !== quiz.questions.length) {
@@ -477,45 +633,53 @@ exports.submitQuiz = async (req, res) => {
         });
       }
 
-      // ✅ Mark this course as completed
-      courseProgress.isCourseCompleted = true;
+      const courseComplete = allRequiredCourseWorkComplete(quiz.courseId, courseProgress);
+      courseProgress.isCourseCompleted = courseComplete;
+      if (courseComplete) {
+        courseProgress.completionStatus = 'completed';
+      }
 
       // -------- LEVEL + ORDER LOGIC --------
       const currentCourse = quiz.courseId;
       const levelOrder = { Beginner: 1, Intermediate: 2, Advanced: 3 };
       const currentLevelRank = levelOrder[currentCourse.level];
 
-      // 1. Next course in same level with higher order (SAME CATEGORY)
-      let nextCourse = await Course.findOne({
-        level: currentCourse.level,
-        category: currentCourse.category,
-        order: { $gt: currentCourse.order },
-      }).sort({ order: 1 });
-
-      // 2. If none → go to next level (lowest order, SAME CATEGORY)
-      if (!nextCourse) {
-        nextCourse = await Course.findOne({
+      if (courseComplete) {
+        // 1. Next course in same level with higher order (SAME CATEGORY)
+        let nextCourse = await Course.findOne({
+          level: currentCourse.level,
           category: currentCourse.category,
-          level: {
-            $in: Object.keys(levelOrder).filter(
-              (lvl) => levelOrder[lvl] > currentLevelRank
-            )
-          },
-        }).sort({ level: 1, order: 1 });
-      }
+          order: { $gt: currentCourse.order },
+        }).sort({ order: 1 });
 
-      if (nextCourse) {
-        if (!nextCourse.studentsEnrolled.includes(studentId)) {
-          nextCourse.studentsEnrolled.push(studentId);
-          await nextCourse.save();
+        // 2. If none → go to the IMMEDIATE next level (rank+1), SAME CATEGORY.
+        //    (Must pick the next level by rank, not by sorting the level string —
+        //    'Advanced' sorts before 'Intermediate' alphabetically and would skip it.)
+        if (!nextCourse) {
+          const nextLevelName = Object.keys(levelOrder).find(
+            (lvl) => levelOrder[lvl] === currentLevelRank + 1
+          );
+          if (nextLevelName) {
+            nextCourse = await Course.findOne({
+              category: currentCourse.category,
+              level: nextLevelName,
+            }).sort({ order: 1 });
+          }
         }
 
-        nextCourseData = {
-          _id: nextCourse._id,
-          title: nextCourse.courseName || nextCourse.title || nextCourse.name,
-          level: nextCourse.level,
-          description: nextCourse.description,
-        };
+        if (nextCourse) {
+          if (!nextCourse.studentsEnrolled.includes(studentId)) {
+            nextCourse.studentsEnrolled.push(studentId);
+            await nextCourse.save();
+          }
+
+          nextCourseData = {
+            _id: nextCourse._id,
+            title: nextCourse.courseName || nextCourse.title || nextCourse.name,
+            level: nextCourse.level,
+            description: nextCourse.description,
+          };
+        }
       }
 
       // -------- STUDENT LEVEL PROGRESSION & GAMIFICATION --------
@@ -527,7 +691,7 @@ exports.submitQuiz = async (req, res) => {
       // Get current level
       const student = await Student.findById(studentId);
 
-      if (student) {
+      if (student && courseProgress.isCourseCompleted) {
         previousLevel = student.difficultyPreference || 'beginner';
         // Normalize level string (e.g. 'beginner' -> 'Beginner') for Course query
         const dbLevel = previousLevel.charAt(0).toUpperCase() + previousLevel.slice(1).toLowerCase();
@@ -547,16 +711,14 @@ exports.submitQuiz = async (req, res) => {
           courseID: {
             $in: levelCourses.map(c => c._id).filter(id => id.toString() !== quiz.courseId._id.toString())
           }
-        }).select('passedLevelQuiz courseID');
+        }).select('isCourseCompleted courseID');
 
         // ✅ FIX: Add current courseProgress (which now includes the NEW quiz pass) to the array
         const allProgress = [...otherProgress, courseProgress];
 
-        // Check if every course has at least one passed quiz
         const completedCourseIds = new Set();
         allProgress.forEach(p => {
-          // Items in passedLevelQuiz are ONLY added when quiz is passed (no 'passed' property needed)
-          if (p.passedLevelQuiz && p.passedLevelQuiz.length > 0) {
+          if (p.isCourseCompleted) {
             completedCourseIds.add(p.courseID.toString());
           }
         });
@@ -614,9 +776,9 @@ exports.submitQuiz = async (req, res) => {
             // Bonus Stars
             student.stars += 50;
 
-            // Update level flags
-            if (!student.levelStatus) student.levelStatus = {};
-            student.levelStatus[previousLevel] = true;
+            // Update level flags for THIS category (Kusoma/Kuhesabu) only.
+            const completionCat = assessmentCategoryOfStyle(student.learningStyle);
+            student.set(`levelStatus.${completionCat}.${previousLevel}`, true);
 
             await student.save({ validateBeforeSave: false });
           }
@@ -625,6 +787,10 @@ exports.submitQuiz = async (req, res) => {
           newLevel = previousLevel;
           levelChanged = false;
         }
+      } else if (student) {
+        previousLevel = student.difficultyPreference || 'beginner';
+        newLevel = previousLevel;
+        levelChanged = false;
       }
 
       // ✅ Clear remedials once passed
@@ -642,11 +808,13 @@ exports.submitQuiz = async (req, res) => {
         levelChanged = false;
       }
 
-      // Failed → assign remedial content (add if not already there)
-      const remedials = await SubSection.find({
-        course: quiz.courseId._id,
-        isRemedial: true,
-      });
+      // Failed → assign remedial content from this course's section tree.
+      const remedials = flattenCourseSubsections(quiz.courseId)
+        .filter((item) => item.isRemedial && item.hasVideo)
+        .map((item) => ({
+          _id: item.subSection._id,
+          sectionId: item.sectionId
+        }));
 
       if (remedials.length > 0) {
         courseProgress.needsRemedial = true;
@@ -657,6 +825,7 @@ exports.submitQuiz = async (req, res) => {
             )
           ) {
             courseProgress.remedialContent.push({
+              sectionId: r.sectionId,
               subSectionId: r._id,
               completed: false,
             });
@@ -666,6 +835,17 @@ exports.submitQuiz = async (req, res) => {
     }
 
     await courseProgress.save();
+
+    let nextLearningItem;
+    if (courseProgress.needsRemedial) {
+      const nextRemedial = courseProgress.remedialContent.find((item) => !item.completed);
+      nextLearningItem = {
+        type: nextRemedial ? 'remedial' : 'quiz',
+        id: nextRemedial ? nextRemedial.subSectionId : quiz._id
+      };
+    } else {
+      nextLearningItem = getNextNormalLearningItem(quiz.courseId, courseProgress);
+    }
 
     return res.status(200).json({
       success: true,
@@ -678,6 +858,7 @@ exports.submitQuiz = async (req, res) => {
         results,
         remedialAssigned: !(percentage >= 80),
         remedialContent: courseProgress.remedialContent || [],
+        next: nextLearningItem,
         nextCourse: nextCourseData,
         // Student level progression data
         studentLevel: {

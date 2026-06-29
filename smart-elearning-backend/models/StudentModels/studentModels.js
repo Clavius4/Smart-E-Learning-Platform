@@ -76,7 +76,9 @@ const userSchema = new mongoose.Schema(
         },
         desiredLevel: {
             type: String,
-            enum: ['beginner', 'intermediate', 'advanced']
+            // null is allowed (cleared once the target level is reached/abandoned).
+            enum: ['beginner', 'intermediate', 'advanced', null],
+            default: null
         },
         signLanguage: {
             type: String,
@@ -104,11 +106,57 @@ const userSchema = new mongoose.Schema(
                 type: { type: String, enum: ['course_completion', 'level_completion', 'perfect_score', 'streak'] }
             }
         ],
-        // Strict Level Progression Tracking
+        passedAssessments: [
+            {
+                assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'AssessmentQuiz' },
+                level: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },
+                category: { type: String, enum: ['literacy', 'numeracy'] },
+                percentage: Number,
+                score: Number,
+                total: Number,
+                passedAt: { type: Date, default: Date.now }
+            }
+        ],
+        // Strict Level Progression Tracking — per category. true when ALL courses
+        // in that category+level are done. Keyed by assessment category so Kusoma
+        // and Kuhesabu completion are tracked independently.
         levelStatus: {
-            beginner: { type: Boolean, default: false }, // true when ALL beginner courses are done
-            intermediate: { type: Boolean, default: false },
-            advanced: { type: Boolean, default: false }
+            literacy: {
+                beginner: { type: Boolean, default: false },
+                intermediate: { type: Boolean, default: false },
+                advanced: { type: Boolean, default: false }
+            },
+            numeracy: {
+                beginner: { type: Boolean, default: false },
+                intermediate: { type: Boolean, default: false },
+                advanced: { type: Boolean, default: false }
+            }
+        },
+        // Placement-assessment attempt tracking (per level+category) for
+        // attempt limits + cooldown. See utils/levelAccess + assessmentController.
+        assessmentAttempts: [
+            {
+                level: { type: String, enum: ['intermediate', 'advanced'] },
+                category: { type: String, enum: ['literacy', 'numeracy'] },
+                attempts: { type: Number, default: 0 },
+                lastAttemptAt: { type: Date },
+                passed: { type: Boolean, default: false }
+            }
+        ],
+        // Per-category proven/target level. `difficultyPreference` + `desiredLevel`
+        // hold the CURRENT category's live values; when the student switches
+        // category (learningStyle) the current values are snapshotted here and the
+        // other category's values are swapped in. Keeps Kusoma & Kuhesabu progress
+        // independent. See utils/levelAccess.applyCategorySwitch.
+        categoryProgress: {
+            literacy: {
+                proven: { type: String, default: 'beginner' },
+                desired: { type: String, default: null }
+            },
+            numeracy: {
+                proven: { type: String, default: 'beginner' },
+                desired: { type: String, default: null }
+            }
         }
 
     },

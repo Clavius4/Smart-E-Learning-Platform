@@ -1,5 +1,6 @@
 const Student = require('../models/StudentModels/studentModels');
 const CourseProgress = require('../models/courseProgress');
+const { assessmentCategoryOfStyle } = require('../utils/levelAccess');
 const ReportService = require('../services/reportService');
 const ReportCache = require('../models/ReportCache');
 const ActivityLog = require('../models/ActivityLog');
@@ -226,6 +227,10 @@ exports.getLevelProgress = async (student, progressRecords) => {
     const levels = ['beginner', 'intermediate', 'advanced'];
     const levelProgress = [];
 
+    // Read completion flags for the student's CURRENT category (Kusoma/Kuhesabu).
+    const cat = assessmentCategoryOfStyle(student.learningStyle);
+    const ls = student.levelStatus?.[cat] || {};
+
     for (const level of levels) {
         // Find all courses at this level that the student is enrolled in
         const levelCourses = progressRecords.filter(p =>
@@ -235,18 +240,18 @@ exports.getLevelProgress = async (student, progressRecords) => {
         const totalCourses = levelCourses.length;
         const completedCourses = levelCourses.filter(p => p.isCourseCompleted).length;
 
-        // Check if level is unlocked
+        // Check if level is unlocked (within this category)
         let unlocked = false;
         if (level === 'beginner') {
             unlocked = true;
         } else if (level === 'intermediate') {
-            unlocked = student.levelStatus?.beginner || false;
+            unlocked = ls.beginner || false;
         } else if (level === 'advanced') {
-            unlocked = student.levelStatus?.intermediate || false;
+            unlocked = ls.intermediate || false;
         }
 
-        // Check if level is completed
-        const completed = student.levelStatus?.[level] || false;
+        // Check if level is completed (within this category)
+        const completed = ls[level] || false;
 
         levelProgress.push({
             level,

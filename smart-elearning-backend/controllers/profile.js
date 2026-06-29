@@ -2,6 +2,7 @@ const Profile = require('../models/StudentModels/profile');
 const User = require('./../models/StudentModels/studentModels');
 const CourseProgress = require('../models/courseProgress')
 const Course = require('../models/course')
+const { canAccessLevel, nextRequiredLevel, applyCategorySwitch, rankOf, provenRank } = require('../utils/levelAccess')
 const mailSender = require('./../utils/mailSender');
 const mongoose = require('mongoose'); // ✅ if CommonJS
 const PDFDocument = require("pdfkit");
@@ -333,6 +334,11 @@ exports.enrollStudents = async (req, res) => {
       });
     }
 
+    const student = await User.findById(userId).select('difficultyPreference');
+    if (!student) {
+      return res.status(404).json({ success: false, message: "Student not found." });
+    }
+
     const results = await Promise.allSettled(
       courses.map(async (courseId) => {
         try {
@@ -340,13 +346,39 @@ exports.enrollStudents = async (req, res) => {
             throw new Error(`Invalid course ID: ${courseId}`);
           }
 
-          // 1. Fetch the course with instructor
-          const courseDoc = await Course.findById(courseId).select("instructor");
+          // 1. Fetch the course (level/category/order needed for gating)
+          const courseDoc = await Course.findById(courseId).select("instructor level category order courseName");
           if (!courseDoc) {
             throw new Error(`Course not found: ${courseId}`);
           }
           if (!courseDoc.instructor) {
             throw new Error(`Instructor missing for course: ${courseId}`);
+          }
+
+          // Idempotent: if already enrolled, succeed without re-creating progress.
+          const existingProgress = await CourseProgress.findOne({ courseID: courseId, userId }).select('_id');
+          if (existingProgress) {
+            return { courseId, success: true, alreadyEnrolled: true };
+          }
+
+          // GATE 1 — level: cannot enroll above the proven level.
+          if (!canAccessLevel(student, courseDoc.level)) {
+            throw new Error(`"${courseDoc.courseName}" is a ${courseDoc.level} course. Pass the ${nextRequiredLevel(student)} assessment first.`);
+          }
+
+          // GATE 2 — sequence: the previous course (same level+category, by order)
+          // must be completed before this one unlocks.
+          const prevCourse = await Course.findOne({
+            level: courseDoc.level,
+            category: courseDoc.category,
+            order: { $lt: courseDoc.order }
+          }).sort({ order: -1 }).select('_id courseName');
+
+          if (prevCourse) {
+            const prevProgress = await CourseProgress.findOne({ userId, courseID: prevCourse._id }).select('isCourseCompleted');
+            if (!prevProgress?.isCourseCompleted) {
+              throw new Error(`Complete "${prevCourse.courseName}" before enrolling in "${courseDoc.courseName}".`);
+            }
           }
 
           // 2. Add user to course's student list
@@ -436,32 +468,32 @@ exports.onBoardDetails = async (req, res) => {
     }
 
     const normalizedDifficulty = difficultyPreference?.toLowerCase();
-    const updateData = {
-      learningStyle,
-      interests,
-      avatar,
-      onboardingComplete: true
-    };
 
-    if (normalizedDifficulty === 'beginner') {
-      updateData.difficultyPreference = 'beginner';
-      updateData.desiredLevel = null;
-    } else if (normalizedDifficulty === 'intermediate' || normalizedDifficulty === 'advanced') {
-      updateData.difficultyPreference = normalizedDifficulty;
-      updateData.desiredLevel = normalizedDifficulty;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      updateData,
-      { new: true }
-    );
-
-    if (!updatedUser) {
+    const student = await User.findById(req.user.id);
+    if (!student) {
       return res.status(404).json({ message: 'User not found in Onboarding' });
     }
 
-    res.status(200).json({ message: 'Onboarding complete', user: updatedUser });
+    // Set the category (and snapshot/swap per-category level if it changes).
+    applyCategorySwitch(student, learningStyle);
+
+    student.interests = interests;
+    student.avatar = avatar;
+    student.onboardingComplete = true;
+
+    // The student always STARTS at beginner; a higher pick becomes the target
+    // they must prove via the placement assessment.
+    if (normalizedDifficulty === 'intermediate' || normalizedDifficulty === 'advanced') {
+      student.difficultyPreference = 'beginner';
+      student.desiredLevel = normalizedDifficulty;
+    } else {
+      student.difficultyPreference = 'beginner';
+      student.desiredLevel = null;
+    }
+
+    await student.save();
+
+    res.status(200).json({ message: 'Onboarding complete', user: student });
   } catch (err) {
     console.error('Onboarding Server Error:', err);
     res.status(500).json({ message: 'Server error during onboarding', error: err.message });
@@ -635,23 +667,25 @@ exports.updateLearningStyle = async (req, res) => {
       });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { learningStyle },
-      { new: true, runValidators: false }
-    );
-
-    if (!updatedUser) {
+    const student = await User.findById(userId);
+    if (!student) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
+    // Switch category-aware: snapshot the current category's level and swap in
+    // the target category's saved level so each track stays independent.
+    const { switched, oldCat, newCat } = applyCategorySwitch(student, learningStyle);
+    await student.save();
+
     res.status(200).json({
       success: true,
-      message: 'Learning style updated successfully',
-      user: updatedUser
+      message: switched
+        ? `Switched from ${oldCat} to ${newCat}. Your ${oldCat} progress is saved; ${newCat} resumes at ${student.difficultyPreference}.`
+        : 'Learning style updated successfully',
+      user: student
     });
   } catch (err) {
     console.error('Learning style update error:', err);
@@ -668,25 +702,38 @@ exports.updateDifficultyLevel = async (req, res) => {
     const { difficultyPreference } = req.body;
     const userId = req.user.id;
 
-    if (!difficultyPreference || !['beginner', 'intermediate', 'advanced'].includes(difficultyPreference.toLowerCase())) {
+    const requested = difficultyPreference?.toLowerCase();
+    if (!requested || !['beginner', 'intermediate', 'advanced'].includes(requested)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid difficulty level. Must be: beginner, intermediate, or advanced'
       });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { difficultyPreference: difficultyPreference.toLowerCase() },
-      { new: true, runValidators: false }
-    ).populate('additionalDetails');
-
-    if (!updatedUser) {
+    const student = await User.findById(userId);
+    if (!student) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
+
+    // Security: a student may NOT self-promote above their proven level. Higher
+    // levels are earned by completing the level or passing the placement
+    // assessment (which already advance difficultyPreference server-side).
+    if (rankOf(requested) > provenRank(student)) {
+      return res.status(403).json({
+        success: false,
+        requireQuiz: true,
+        requiredLevel: nextRequiredLevel(student),
+        message: `You haven't unlocked ${requested} yet. Complete your current level or pass the ${nextRequiredLevel(student)} assessment first.`
+      });
+    }
+
+    student.difficultyPreference = requested;
+    await student.save();
+
+    const updatedUser = await User.findById(userId).populate('additionalDetails');
 
     res.status(200).json({
       success: true,
@@ -701,4 +748,3 @@ exports.updateDifficultyLevel = async (req, res) => {
     });
   }
 };
-

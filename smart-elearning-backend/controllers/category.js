@@ -1,4 +1,5 @@
 const Category = require('../models/category')
+const { activeCourseStatusQuery } = require('../utils/courseStatus');
 
 // get Random Integer
 function getRandomInt(max) {
@@ -75,7 +76,7 @@ exports.getCategoryPageDetails = async (req, res) => {
         const selectedCategory = await Category.findById(categoryId)
             .populate({
                 path: "courses",
-                match: { status: "Published" },
+                match: activeCourseStatusQuery(),
                // populate: "ratingAndReviews",
             })
             .exec()
@@ -110,7 +111,7 @@ exports.getCategoryPageDetails = async (req, res) => {
         )
             .populate({
                 path: "courses",
-                match: { status: "" },
+                match: activeCourseStatusQuery(),
             })
             .exec()
 
@@ -119,7 +120,7 @@ exports.getCategoryPageDetails = async (req, res) => {
         const allCategories = await Category.find()
             .populate({
                 path: "courses",
-                match: { status: "Published" },
+                match: activeCourseStatusQuery(),
                 populate: {
                     path: "instructor",
                 },

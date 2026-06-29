@@ -17,7 +17,7 @@ exports.createSection = async (req, res) => {
         }
 
         // create entry in DB
-        const newSection = await Section.create({ sectionName });
+        const newSection = await Section.create({ sectionName, moduleName: sectionName });
 
         // link - section id to current course 
         const updatedCourse = await Course.findByIdAndUpdate(courseId,
@@ -74,7 +74,7 @@ exports.updateSection = async (req, res) => {
         }
 
         // update section name in DB
-        await Section.findByIdAndUpdate(sectionId, { sectionName }, { new: true });
+        await Section.findByIdAndUpdate(sectionId, { sectionName, moduleName: sectionName }, { new: true });
 
         const updatedCourseDetails = await Course.findById(courseId)
             .populate({
@@ -136,4 +136,3 @@ exports.deleteSection = async (req, res) => {
         })
     }
 }
-

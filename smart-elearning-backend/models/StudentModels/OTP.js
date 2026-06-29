@@ -35,13 +35,10 @@ async function sendVerificationEmail(email, otp) {
 }
 
 OTPSchema.pre('save', async function (next) {
-    if (this.isNew) {
-        try {
-            await sendVerificationEmail(this.email, this.otp);
-        } catch (error) {
-            // Continue saving OTP even if email fails
+    if (this.isNew && process.env.SEND_OTP_EMAILS === 'true') {
+        sendVerificationEmail(this.email, this.otp).catch((error) => {
             console.error('Email sending failed but OTP saved:', error);
-        }
+        });
     }
     next();
 });

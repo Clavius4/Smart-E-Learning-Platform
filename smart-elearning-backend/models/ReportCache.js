@@ -85,11 +85,17 @@ reportCacheSchema.statics.getOrSet = async function(key, ttlSeconds = 900, gener
     // Generate new data
     const data = await generator();
 
+    // userModel is required (refPath). Derive it from the reportType prefix.
+    const userModel = reportType.startsWith('instructor') ? 'instructors'
+        : reportType.startsWith('admin') ? 'Admin'
+        : 'students';
+
     // Parse params from hash? For simplicity, we'll just store empty params
     // In production, you'd want to store the actual params
     await this.create({
         reportType,
         userId,
+        userModel,
         params: { hash: paramsHash },
         data,
         expiresAt: new Date(Date.now() + ttlSeconds * 1000)

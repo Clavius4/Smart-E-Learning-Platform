@@ -9,7 +9,46 @@ const CourseProgress = require('../models/courseProgress')
 
 const { uploadImageToCloudinary, deleteResourceFromCloudinary } = require('../utils/imageUploader');
 const { convertSecondsToDuration } = require("../utils/secToDuration");
+const { activeCourseStatusQuery } = require('../utils/courseStatus');
 const studentModels = require('../models/StudentModels/studentModels');
+const { canAccessLevel, nextRequiredLevel } = require('../utils/levelAccess');
+
+const STYLE_TO_COURSE_CATEGORY = {
+  literacy: 'Kusoma',
+  visual: 'Kusoma',
+  text: 'Kusoma',
+  numeracy: 'Kuhesabu',
+  numbers: 'Kuhesabu'
+};
+
+const COURSE_CATEGORY_TO_ASSESSMENT = {
+  kusoma: 'literacy',
+  kuandika: 'numeracy',
+  kuhesabu: 'numeracy'
+};
+
+function getCourseCategoryNameForStyle(learningStyle) {
+  const normalizedStyle = learningStyle?.toLowerCase();
+  return STYLE_TO_COURSE_CATEGORY[normalizedStyle] || normalizedStyle;
+}
+
+function hasPassedAssessment(student, progress, level, category) {
+  const normalizedLevel = level?.toLowerCase();
+  const passedOnStudent = student?.passedAssessments?.some(
+    (entry) =>
+      entry.level === normalizedLevel &&
+      (!category || entry.category === category)
+  );
+
+  const passedInProgress = progress?.passedLevelQuiz?.some(
+    (entry) =>
+      entry.passed === true &&
+      entry.level === normalizedLevel &&
+      (!category || entry.category === category)
+  );
+
+  return Boolean(passedOnStudent || passedInProgress);
+}
 
 
 // ================ create new course ================
@@ -139,14 +178,28 @@ exports.getNextContent = async (req, res) => {
 
     // 2️⃣ Otherwise normal flow → find next uncompleted video
     const completedIds = courseProgress?.completedVideos.map(v => v.subsectionId.toString()) || [];
+    const passedQuizIds = new Set(
+      (courseProgress?.passedLevelQuiz || [])
+        .filter((entry) => entry.quizId)
+        .map((entry) => entry.quizId.toString())
+    );
 
     for (const section of course.courseContent) {
       for (const subSection of section.subSection) {
+        if (subSection.isRemedial) continue;
         if (!completedIds.includes(subSection._id.toString())) {
           return res.status(200).json({
             type: "lesson",
             message: "Next lesson",
             content: subSection,
+          });
+        }
+
+        if (subSection.linkedQuiz && !passedQuizIds.has(subSection.linkedQuiz.toString())) {
+          return res.status(200).json({
+            type: "quiz",
+            message: "Time for this lesson's quiz!",
+            id: subSection.linkedQuiz
           });
         }
       }
@@ -155,18 +208,27 @@ exports.getNextContent = async (req, res) => {
     // 3️⃣ If NO videos left → Check for Quiz
     // Check if course has a global quiz attached
     if (course.quizzes && course.quizzes.length > 0) {
+      const nextCourseQuiz = course.quizzes.find((quizId) => !passedQuizIds.has(quizId.toString()));
+      if (!nextCourseQuiz) {
+        return res.status(200).json({
+          type: "completed",
+          message: "Course completed"
+        });
+      }
       // Check if this quiz is already passed? (optional, but good practice)
       return res.status(200).json({
         type: "quiz",
         message: "Time for a quiz!",
-        id: course.quizzes[0] // Return the quiz ID
+        id: nextCourseQuiz
       });
     }
 
     const currentOrder = course.order || 1;
     const nextCourseInLevel = await Course.findOne({
       level: course.level,
-      order: { $gt: currentOrder }
+      category: course.category, // stay within the same category (Kusoma/Kuhesabu)
+      order: { $gt: currentOrder },
+      ...activeCourseStatusQuery()
     }).sort({ order: 1 });
 
     if (nextCourseInLevel) {
@@ -185,10 +247,11 @@ exports.getNextContent = async (req, res) => {
     const nextLevel = levelOrder[currentLevelIndex + 1];
 
     if (nextLevel) {
-      // STRICT CHECK: Are all courses in current level completed?
+      // STRICT CHECK: Are all courses in current level + category completed?
       const currentLevelCourses = await Course.find({
         level: course.level,
-        status: 'Published'
+        category: course.category,
+        ...activeCourseStatusQuery()
       }).select('_id');
 
       const allProgress = await CourseProgress.find({
@@ -208,7 +271,7 @@ exports.getNextContent = async (req, res) => {
       const allCurrentLevelCompleted = currentLevelCourses.every(c => completedCourseIds.has(c._id.toString()));
 
       if (allCurrentLevelCompleted) {
-        const firstCourseNextLevel = await Course.findOne({ level: nextLevel }).sort({ order: 1 });
+        const firstCourseNextLevel = await Course.findOne({ level: nextLevel, category: course.category }).sort({ order: 1 });
         if (firstCourseNextLevel) {
           return res.status(200).json({
             type: "nextCourse",
@@ -437,49 +500,18 @@ exports.getFullCourseDetails = async (req, res) => {
     });
 
 
-    // Restrict Intermediate and Advanced access ONLY for users who chose a higher level on onboarding
+    // Universal level gate: block any course above the student's PROVEN level
+    // (difficultyPreference) for EVERY student — not just skip-flow users.
     if (courseDetails.level !== "Beginner") {
-      const normalizedLevel = courseDetails.level?.toLowerCase();
-      const student = await studentModels.findById(userId).select('difficultyPreference desiredLevel');
-      const isSkipFlow =
-        student?.difficultyPreference === 'beginner' &&
-        student?.desiredLevel &&
-        student?.desiredLevel !== 'beginner';
-
-      if (isSkipFlow) {
-        if (normalizedLevel !== student.desiredLevel) {
-          return res.status(403).json({
-            success: false,
-            message: `Access to ${courseDetails.level} course requires passing the ${student.desiredLevel} assessment first.`,
-            requireQuiz: true,
-            requiredLevel: student.desiredLevel,
-          });
-        }
-
-        const categoryName = courseDetails.category?.name || "";
-        const normalizedCategory = (() => {
-          const name = categoryName.toLowerCase();
-          if (name === "kusoma") return "literacy";
-          if (name === "kuandika" || name === "kuhesabu") return "numeracy";
-          return null;
-        })();
-
-        const passedAssessments = courseProgressCount?.passedLevelQuiz || [];
-        const hasPassed = passedAssessments.some(
-          (entry) =>
-            entry.passed === true &&
-            entry.level === normalizedLevel &&
-            (!normalizedCategory || entry.category === normalizedCategory)
-        );
-
-        if (!hasPassed) {
-          return res.status(403).json({
-            success: false,
-            message: `Access to ${courseDetails.level} course requires passing the ${courseDetails.level} assessment first.`,
-            requireQuiz: true,
-            requiredLevel: courseDetails.level,
-          });
-        }
+      const student = await studentModels.findById(userId).select('difficultyPreference');
+      if (!canAccessLevel(student, courseDetails.level)) {
+        const requiredLevel = nextRequiredLevel(student);
+        return res.status(403).json({
+          success: false,
+          message: `Access to ${courseDetails.level} content is locked. Pass the ${requiredLevel} assessment to continue.`,
+          requireQuiz: true,
+          requiredLevel,
+        });
       }
     }
 
@@ -487,17 +519,6 @@ exports.getFullCourseDetails = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: `Could not find course with id: ${courseId}`,
-      });
-    }
-
-    // ✅ Only block draft access for non-instructors
-    if (
-      courseDetails.status === "Draft" &&
-      courseDetails.instructor._id.toString() !== userId
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: `Accessing a draft course is forbidden`,
       });
     }
 
@@ -715,6 +736,10 @@ exports.deleteCourse = async (req, res) => {
       await Section.findByIdAndDelete(sectionId)
     }
 
+    // Delete quizzes attached to this course (prevents orphaned Quiz docs)
+    const Quiz = require('../models/quiz')
+    await Quiz.deleteMany({ courseId: courseId })
+
     // Delete the course
     await Course.findByIdAndDelete(courseId)
 
@@ -746,61 +771,29 @@ exports.getCoursesByLevelExplicit = async (req, res) => {
     }
 
 
-    // Map learning style to Category Name
-    const styleToCategoryMap = {
-      'literacy': 'Kusoma',
-      'numeracy': 'Kuhesabu'
-    };
-    const learningStyle = student.learningStyle?.toLowerCase();
-    const categoryName = styleToCategoryMap[learningStyle] || learningStyle;
+    const categoryName = getCourseCategoryNameForStyle(student.learningStyle);
 
     const matchedCategory = await Category.findOne({
       name: { $regex: new RegExp(`^${categoryName}$`, 'i') }
     });
 
-    // Gate Intermediate/Advanced courses ONLY for users who chose a higher level on onboarding
+    // Universal level gate: applies to EVERY student, by proven level.
     const normalizedLevel = level?.toLowerCase();
-    const isSkipFlow =
-      student?.difficultyPreference === 'beginner' &&
-      student?.desiredLevel &&
-      student?.desiredLevel !== 'beginner';
-
-    if (isSkipFlow && normalizedLevel !== 'beginner') {
-      if (normalizedLevel !== student.desiredLevel) {
-        return res.status(403).json({
-          success: false,
-          courses: [],
-          requestedLevel: level,
-          message: `Access to ${level} courses requires passing the ${student.desiredLevel} assessment first.`,
-          requireQuiz: true,
-          requiredLevel: student.desiredLevel
-        });
-      }
-
-      const progress = await CourseProgress.findOne({ userId: studentId });
-      const normalizedCategory = categoryName?.toLowerCase() === 'kusoma' ? 'literacy' : 'numeracy';
-      const hasPassedAssessment = progress?.passedLevelQuiz?.some(
-        (entry) =>
-          entry.passed === true &&
-          entry.level === normalizedLevel &&
-          entry.category === normalizedCategory
-      );
-
-      if (!hasPassedAssessment) {
-        return res.status(403).json({
-          success: false,
-          courses: [],
-          requestedLevel: level,
-          message: `Access to ${level} courses requires passing the ${level} assessment first.`,
-          requireQuiz: true,
-          requiredLevel: level
-        });
-      }
+    if (!canAccessLevel(student, normalizedLevel)) {
+      const requiredLevel = nextRequiredLevel(student);
+      return res.status(403).json({
+        success: false,
+        courses: [],
+        requestedLevel: level,
+        message: `Access to ${level} courses is locked. Pass the ${requiredLevel} assessment to continue.`,
+        requireQuiz: true,
+        requiredLevel
+      });
     }
 
     const query = {
       level: level.charAt(0).toUpperCase() + level.slice(1).toLowerCase(), // Capitalize "Beginner"
-      ...(student.interests?.length > 0 ? { tags: { $in: student.interests } } : {})
+      ...(student.interests?.length > 0 ? { tag: { $in: student.interests } } : {})
     };
 
     if (matchedCategory) {
@@ -837,20 +830,11 @@ exports.getCoursesForOnboardedUser = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { learningStyle, interests, difficultyPreference, desiredLevel } = user;
-    const effectiveLevel = (difficultyPreference || desiredLevel || 'beginner').toLowerCase();
+    const { learningStyle, interests, difficultyPreference } = user;
+    const effectiveLevel = (difficultyPreference || 'beginner').toLowerCase();
     const formattedLevel = effectiveLevel.charAt(0).toUpperCase() + effectiveLevel.slice(1).toLowerCase();
 
-    // 1️⃣ Map learning style to Category Name
-    const styleToCategoryMap = {
-      'literacy': 'Kusoma',
-      'numeracy': 'Kuhesabu',
-      'numbers': 'Kuhesabu'
-    };
-
-    // Use mapped name or fallback to original if not found
-    const normalizedStyle = learningStyle?.toLowerCase();
-    const categoryName = styleToCategoryMap[normalizedStyle] || normalizedStyle;
+    const categoryName = getCourseCategoryNameForStyle(learningStyle);
 
     console.log(`🔍 Filtering for User: ${userId}`);
     console.log(`   Style: ${learningStyle} -> Category: ${categoryName}`);
@@ -874,12 +858,9 @@ exports.getCoursesForOnboardedUser = async (req, res) => {
     // We ONLY want courses that match the Category AND Level.
     const query = {
       level: formattedLevel,
-      category: matchedCategory._id
+      category: matchedCategory._id,
+      ...activeCourseStatusQuery()
     };
-
-    if (process.env.NODE_ENV === 'production') {
-      query.status = 'Published';
-    }
 
     // 3️⃣ Fetch Courses SORTED BY ORDER
     let courses = await Course.find(query)

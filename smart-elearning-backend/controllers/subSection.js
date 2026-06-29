@@ -1,6 +1,7 @@
 const Section = require('../models/section');
 
 const SubSection = require('../models/subSection');
+const mongoose = require('mongoose');
 //const { uploadMediaToCloudinary } = require('../utils/imageUploader');
 const { uploadVideo } = require('./../video-service/videoService')
 const cloudinary = require('cloudinary').v2;
@@ -12,7 +13,7 @@ const fs = require('fs');
 exports.createSubSection = async (req, res) => {
   try {
     // const { title, description, sectionId } = req.body;
-    const { title, description, sectionId, isRemedial, linkedQuiz } = req.body;
+    const { title, description, sectionId, isRemedial, linkedQuiz, order } = req.body;
 
     if (!req.files || !req.files.video || !title || !description || !sectionId) {
       return res.status(400).json({ success: false, message: "All fields including video file are required" });
@@ -54,6 +55,7 @@ exports.createSubSection = async (req, res) => {
       description,
       timeDuration: uploadResult.duration,
       videoUrl: uploadResult.secure_url,
+      order: Number.isFinite(Number(order)) ? Number(order) : 0,
       isRemedial: isRemedial || false,
       linkedQuiz: linkedQuiz || null
     });
@@ -86,7 +88,7 @@ exports.createSubSection = async (req, res) => {
 
 exports.updateSubSection = async (req, res) => {
   try {
-    const { sectionId, subSectionId, title, description } = req.body;
+    const { sectionId, subSectionId, title, description, isRemedial, linkedQuiz, order } = req.body;
 
     // Validation
     if (!subSectionId || !mongoose.Types.ObjectId.isValid(subSectionId)) {
@@ -107,6 +109,9 @@ exports.updateSubSection = async (req, res) => {
     // Apply updates
     if (title) subSection.title = title;
     if (description) subSection.description = description;
+    if (typeof isRemedial !== 'undefined') subSection.isRemedial = isRemedial === true || isRemedial === 'true';
+    if (typeof linkedQuiz !== 'undefined') subSection.linkedQuiz = linkedQuiz || null;
+    if (typeof order !== 'undefined' && Number.isFinite(Number(order))) subSection.order = Number(order);
 
     // Handle video file upload
     if (req.files && req.files.video) {
@@ -119,7 +124,7 @@ exports.updateSubSection = async (req, res) => {
       });
 
       subSection.videoUrl = uploadResult.secure_url;
-      subSection.timeDuration = formatDuration(uploadResult.duration);
+      subSection.timeDuration = uploadResult.duration;
 
       // Clean temp file
       try {
