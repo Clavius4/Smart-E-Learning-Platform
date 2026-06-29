@@ -2,7 +2,10 @@ const Profile = require('../models/StudentModels/profile');
 const User = require('./../models/StudentModels/studentModels');
 const CourseProgress = require('../models/courseProgress')
 const Course = require('../models/course')
-const { canAccessLevel, nextRequiredLevel, applyCategorySwitch, rankOf, provenRank } = require('../utils/levelAccess')
+const { canAccessLevel, nextRequiredLevel, applyCategorySwitch, rankOf, provenRank, assessmentCategoryOfStyle } = require('../utils/levelAccess')
+
+// Course category name (Kusoma/Kuhesabu/Kuandika) -> assessment category bucket.
+const COURSE_CATEGORY_TO_ASSESSMENT = { kusoma: 'literacy', kuandika: 'numeracy', kuhesabu: 'numeracy' }
 const mailSender = require('./../utils/mailSender');
 const mongoose = require('mongoose'); // ✅ if CommonJS
 const PDFDocument = require("pdfkit");
@@ -211,16 +214,26 @@ exports.getEnrolledCourses = async (req, res) => {
     let userDetails = await User.findOne({ _id: userId, })
       .populate({
         path: "courses",
-        populate: {
-          path: "courseContent",
-          populate: {
-            path: "subSection",
+        populate: [
+          {
+            path: "courseContent",
+            populate: {
+              path: "subSection",
+            },
           },
-        },
+          { path: "category", select: "name" },
+        ],
       })
       .exec()
 
     userDetails = userDetails.toObject()
+
+    // Only show courses for the student's CURRENT category (Kusoma vs Kuhesabu).
+    // Enrollments in the other category are preserved and reappear on switch.
+    const currentCategory = assessmentCategoryOfStyle(userDetails.learningStyle)
+    userDetails.courses = (userDetails.courses || []).filter(
+      (c) => COURSE_CATEGORY_TO_ASSESSMENT[(c.category?.name || '').toLowerCase()] === currentCategory
+    )
 
     var SubsectionLength = 0
     for (var i = 0; i < userDetails.courses.length; i++) {
