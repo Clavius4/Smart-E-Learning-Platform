@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 
 const { QuestionuploadImageToCloudinary } = require('../utils/imageUploader');
 const { assessmentCategoryOfStyle } = require('../utils/levelAccess');
+const { activeCourseStatusQuery } = require('../utils/courseStatus');
 // ================ quiz course ================
 
 function flattenCourseSubsections(courseDoc) {
@@ -645,11 +646,12 @@ exports.submitQuiz = async (req, res) => {
       const currentLevelRank = levelOrder[currentCourse.level];
 
       if (courseComplete) {
-        // 1. Next course in same level with higher order (SAME CATEGORY)
+        // 1. Next course in same level with higher order (SAME CATEGORY, active only)
         let nextCourse = await Course.findOne({
           level: currentCourse.level,
           category: currentCourse.category,
           order: { $gt: currentCourse.order },
+          ...activeCourseStatusQuery(),
         }).sort({ order: 1 });
 
         // 2. If none → go to the IMMEDIATE next level (rank+1), SAME CATEGORY.
@@ -663,6 +665,7 @@ exports.submitQuiz = async (req, res) => {
             nextCourse = await Course.findOne({
               category: currentCourse.category,
               level: nextLevelName,
+              ...activeCourseStatusQuery(),
             }).sort({ order: 1 });
           }
         }
@@ -697,11 +700,14 @@ exports.submitQuiz = async (req, res) => {
         const dbLevel = previousLevel.charAt(0).toUpperCase() + previousLevel.slice(1).toLowerCase();
 
         // 2. Strict Level Completion Check
-        // Find ALL courses in this level AND same Category
+        // Count only ACTIVE courses in this level+category — i.e. the same set the
+        // student can actually see/complete (activeCourseStatusQuery). Counting
+        // courses the student can never reach (e.g. Published when only Draft is
+        // active) would make the level impossible to complete.
         const levelCourses = await Course.find({
           level: dbLevel,
-          category: currentCourse.category
-          // status: 'Published' // Removed strict filter to prevent "vacuously true" completion if all courses are Draft
+          category: currentCourse.category,
+          ...activeCourseStatusQuery()
         }).select('_id order');
 
         // Find ALL progress for this user in this level (EXCLUDING current course)

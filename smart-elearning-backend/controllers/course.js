@@ -271,7 +271,7 @@ exports.getNextContent = async (req, res) => {
       const allCurrentLevelCompleted = currentLevelCourses.every(c => completedCourseIds.has(c._id.toString()));
 
       if (allCurrentLevelCompleted) {
-        const firstCourseNextLevel = await Course.findOne({ level: nextLevel, category: course.category }).sort({ order: 1 });
+        const firstCourseNextLevel = await Course.findOne({ level: nextLevel, category: course.category, ...activeCourseStatusQuery() }).sort({ order: 1 });
         if (firstCourseNextLevel) {
           return res.status(200).json({
             type: "nextCourse",
