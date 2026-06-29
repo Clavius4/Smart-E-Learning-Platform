@@ -593,6 +593,10 @@ exports.submitAssessment = async (req, res) => {
       await student.save();
     }
 
+    // Return the refreshed user so the client can update its cached profile
+    // (level) immediately, without needing a re-login or category switch.
+    const updatedUser = await Student.findById(userId).select('-password').populate('additionalDetails');
+
     res.status(200).json({
       success: true,
       message: 'Assessment submitted successfully',
@@ -604,6 +608,7 @@ exports.submitAssessment = async (req, res) => {
       nextStep,
       attemptsLeft,
       provenLevel: (student.difficultyPreference || 'beginner').toLowerCase(),
+      user: updatedUser,
       ...(settledLevel ? { settledLevel } : {}),
       ...(cooldownUntil ? { cooldownUntil } : {})
     });

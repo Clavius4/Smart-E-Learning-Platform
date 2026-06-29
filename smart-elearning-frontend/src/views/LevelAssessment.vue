@@ -494,11 +494,13 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainNav from '@/components/navigation/MainNav.vue'
-import { useAssessmentStore } from '@/stores/assessmentStore' 
+import { useAssessmentStore } from '@/stores/assessmentStore'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const assessmentStore = useAssessmentStore()
+const authStore = useAuthStore()
 
 // State
 const loading = ref(false)
@@ -761,6 +763,12 @@ const submitAssessment = async () => {
         results: result.results
       }
       assessmentSubmitted.value = true
+
+      // Refresh the cached profile so the new level shows immediately
+      // (no re-login or category switch needed).
+      if (result.user) {
+        authStore.setUser(result.user)
+      }
     }
   } catch (err) {
     console.error('Assessment submission error:', err)
