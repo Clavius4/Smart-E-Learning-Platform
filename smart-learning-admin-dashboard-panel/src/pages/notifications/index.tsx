@@ -18,19 +18,17 @@ import Zoom from '@mui/material/Zoom';
 import { alpha, useTheme } from '@mui/material/styles';
 import Loader from 'components/common/Loader';
 import { NotificationItem } from 'services/notifications';
-import {
-  NotificationsActive as NotificationsActiveIcon,
-  DoneAll as DoneAllIcon,
-  FilterList as FilterListIcon,
-  Refresh as RefreshIcon,
-  Book as BookIcon,
-  School as SchoolIcon,
-  EmojiEvents as EmojiEventsIcon,
-  Assignment as AssignmentIcon,
-  PersonAdd as PersonAddIcon,
-  Login as LoginIcon,
-  MenuBook as MenuBookIcon,
-} from '@mui/icons-material';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import DoneAllIcon from '@mui/icons-material/DoneAll';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import BookIcon from '@mui/icons-material/Book';
+import SchoolIcon from '@mui/icons-material/School';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import LoginIcon from '@mui/icons-material/Login';
+import MenuBookIcon from '@mui/icons-material/MenuBook';
 
 
 interface ActionDetail {

@@ -9,15 +9,13 @@ import {
   Chip,
   useTheme 
 } from '@mui/material';
-import { 
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Event as EventIcon,
-  Today as TodayIcon,
-  ViewModule as ViewModuleIcon,
-  ViewAgenda as ViewAgendaIcon,
-  AccessTime as AccessTimeIcon
-} from '@mui/icons-material';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import EventIcon from '@mui/icons-material/Event';
+import TodayIcon from '@mui/icons-material/Today';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import ViewAgendaIcon from '@mui/icons-material/ViewAgenda';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import 'react-calendar/dist/Calendar.css';
 
 type CalendarValue = Date | null | [Date | null, Date | null];
