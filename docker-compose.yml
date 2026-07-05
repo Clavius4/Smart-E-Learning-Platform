@@ -35,7 +35,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - VITE_BACKEND_URL=http://localhost:5000
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=development
     depends_on:
       - backend
@@ -55,7 +55,7 @@ services:
     ports:
       - "5175:5173"
     environment:
-      - VITE_BACKEND_URL=http://localhost:5000
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=development
     depends_on:
       - backend
@@ -75,7 +75,7 @@ services:
     ports:
       - "5174:5173"
     environment:
-      - VITE_BACKEND_URL=http://localhost:5000
+      - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=production
     depends_on:
       - backend
