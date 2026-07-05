@@ -32,5 +32,13 @@ jobs:
             echo "--- containers ---"
             docker-compose ps
             echo "--- health check ---"
-            sleep 10
-            curl -sf http://localhost:5000/api/health && echo " HEALTH OK"
+            for i in $(seq 1 12); do
+              if curl -sf http://localhost:5000/api/health; then
+                echo " HEALTH OK"
+                exit 0
+              fi
+              echo "waiting for backend ($i/12)..."
+              sleep 10
+            done
+            echo "backend failed to become healthy" >&2
+            exit 1
