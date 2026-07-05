@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require('bcryptjs');
 const Admin = require("../models/admin");
 const Profile = require('../models/InstructorModels/InstructorProfile');
+const StudentProfile = require('../models/StudentModels/profile');
 const Student = require("../models/StudentModels/studentModels");
 const Instructor = require("../models/InstructorModels/InstructorModels");
 const Course = require("../models/course"); // Correct path
@@ -218,18 +219,15 @@ exports.createStudent = async (req, res) => {
     // hash - secure passoword
     let hashedPassword = await bcrypt.hash(password, 10);
 
-    // additionDetails
-    // const profileDetails = await Profile.create({
-    //      gender: null, dateOfBirth: null, about: null, contactNumber: null
-    //  });
-
+    // additionDetails (required by the student schema; mirror the signup flow)
+    const profileDetails = await StudentProfile.create({
+      dateOfBirth: null, about: null
+    });
 
     // create entry in DB
     const userData = await Student.create({
       firstName, lastName, email, password: hashedPassword,
-      //contactNumber,
-      //additionalDetails: profileDetails._id,
-
+      additionalDetails: profileDetails._id,
       image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName} ${lastName}`
     });
 
