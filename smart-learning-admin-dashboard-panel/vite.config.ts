@@ -21,6 +21,18 @@ export default defineConfig(({ command }) => ({
           'process.env.NODE_ENV': JSON.stringify('development'),
         }
       : undefined,
+  // Pre-bundle the MUI/emotion stack in one pass; piecemeal discovery
+  // produces dep chunks whose lazy init ordering breaks at runtime
+  // ("createTheme_default is not a function").
+  optimizeDeps: {
+    include: [
+      '@mui/material',
+      '@mui/icons-material',
+      '@mui/x-data-grid',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
+  },
   server: {
     host: '0.0.0.0',
     port: 3000,
