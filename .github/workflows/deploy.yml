@@ -25,6 +25,8 @@ jobs:
             cd /root/smart-learning-platform-docker
             git fetch origin main
             git reset --hard origin/main
+            # .env is not in git; restore from the server-side backup if missing
+            [ -f .env ] || cp /root/smart-learning-secrets/.env .env
             docker-compose up -d --build
             docker image prune -f
             echo "--- containers ---"

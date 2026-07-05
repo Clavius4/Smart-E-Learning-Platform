@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: smart-learning-backend
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     env_file:
       - ./.env
     environment:
@@ -33,7 +33,7 @@ services:
       dockerfile: Dockerfile
     container_name: smart-learning-admin
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=development
@@ -53,7 +53,7 @@ services:
       dockerfile: Dockerfile
     container_name: smart-learning-instructor
     ports:
-      - "5175:5173"
+      - "127.0.0.1:5175:5173"
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=development
@@ -73,7 +73,7 @@ services:
       dockerfile: Dockerfile
     container_name: smart-learning-student
     ports:
-      - "5174:5173"
+      - "127.0.0.1:5174:5173"
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL:-http://localhost:5000}
       - NODE_ENV=production
@@ -91,7 +91,7 @@ services:
     image: mongo:6
     container_name: smart-learning-mongodb
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=softnet
