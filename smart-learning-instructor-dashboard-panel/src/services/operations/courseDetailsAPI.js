@@ -23,6 +23,8 @@ const {
   CREATE_RATING_API,
   LECTURE_COMPLETION_API,
   CREATE_QUIZ_API,
+  EDIT_QUIZ_API,
+  GET_INSTRUCTOR_QUIZZES_API,
 } = courseEndpoints
 
 
@@ -460,7 +462,7 @@ export const editCourseQuiz = async (quizData, token) => {
   let result = null;
 
   try {
-    const response = await apiConnector("POST", EDIT_QUIZ_API, quizData, {
+    const response = await apiConnector("POST", `${EDIT_QUIZ_API}/${quizData.quizId}`, quizData, {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     });
@@ -478,5 +480,22 @@ export const editCourseQuiz = async (quizData, token) => {
     toast.error(error.message);
   }
   toast.dismiss(toastId);
+  return result;
+};
+
+// GET ALL QUIZZES OF THE LOGGED-IN INSTRUCTOR
+export const getInstructorQuizzes = async (token) => {
+  let result = [];
+  try {
+    const response = await apiConnector("GET", GET_INSTRUCTOR_QUIZZES_API, null, {
+      Authorization: `Bearer ${token}`,
+    });
+    if (!response?.data?.success) {
+      throw new Error("Could Not Fetch Quizzes");
+    }
+    result = response?.data?.quizzes || [];
+  } catch (error) {
+    console.log("GET INSTRUCTOR QUIZZES API ERROR............", error);
+  }
   return result;
 };

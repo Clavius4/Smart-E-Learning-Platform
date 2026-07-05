@@ -43,6 +43,8 @@ export const courseEndpoints = {
   LECTURE_COMPLETION_API: BASE_URL + "/api/course/updateCourseProgress",
   CREATE_RATING_API: BASE_URL + "/course/createRating",
   CREATE_QUIZ_API: BASE_URL + "/api/quizzes/createQuiz",
+  EDIT_QUIZ_API: BASE_URL + "/api/quizzes", // POST /:quizId
+  GET_INSTRUCTOR_QUIZZES_API: BASE_URL + "/api/quizzes",
   GET_COURSE_INROLLED_STUDENTS_API: BASE_URL + "/api/course/instructor-course-progress/:courseId",
 }
 

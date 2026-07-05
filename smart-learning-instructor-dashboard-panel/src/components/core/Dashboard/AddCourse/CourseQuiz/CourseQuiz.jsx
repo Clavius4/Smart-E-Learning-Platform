@@ -3,14 +3,13 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { X, Image, Plus, ChevronDown } from "lucide-react";
-import { createCourseQuiz, editCourseQuiz, getFullDetailsOfCourse } from "../../../../../services/operations/courseDetailsAPI";
-import { setStep } from "../../../../../slices/courseSlice";
+import { createCourseQuiz, editCourseQuiz, getFullDetailsOfCourse, getInstructorQuizzes } from "../../../../../services/operations/courseDetailsAPI";
+import { setStep, setCourse, setQuiz, setEditQuiz } from "../../../../../slices/courseSlice";
 
-const CourseQuiz = ({ editQuiz }) => {
+const CourseQuiz = () => {
   const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
-  const { course } = useSelector((state) => state.course);
-  const { quiz, editQuiz: editQuizState } = useSelector((state) => state.quiz || {});
+  const { course, editCourse, quiz, editQuiz: editQuizState } = useSelector((state) => state.course);
 
   const [loading, setLoading] = useState(false);
   const [courseId, setCourseId] = useState("");
@@ -68,6 +67,30 @@ const CourseQuiz = ({ editQuiz }) => {
       });
     }
   }, [editQuizState, quiz, course, appendQuestion, setValue]);
+
+  // In edit-course mode, load the course's existing quiz (if any) so saving
+  // updates it instead of creating a duplicate.
+  useEffect(() => {
+    const loadExistingQuiz = async () => {
+      if (!editCourse || !course?._id) return;
+      const loadedQuizCourseId = quiz?.courseId?._id || quiz?.courseId;
+      if (quiz && loadedQuizCourseId?.toString() === course._id.toString()) return;
+      const quizzes = await getInstructorQuizzes(token);
+      const courseQuizzes = quizzes.filter((q) => {
+        const qCourseId = q.courseId?._id || q.courseId;
+        return qCourseId?.toString() === course._id.toString();
+      });
+      if (courseQuizzes.length > 0) {
+        // latest quiz wins if duplicates exist
+        dispatch(setQuiz(courseQuizzes[courseQuizzes.length - 1]));
+        dispatch(setEditQuiz(true));
+      } else {
+        dispatch(setQuiz(null));
+        dispatch(setEditQuiz(false));
+      }
+    };
+    loadExistingQuiz();
+  }, [editCourse, course, quiz, token, dispatch]);
 
   // Convert file to base64
   const fileToBase64String = (file) => {
@@ -207,20 +230,18 @@ const CourseQuiz = ({ editQuiz }) => {
       // Process questions and convert images to base64
       const processedQuestions = await Promise.all(
         data.questions.map(async (q) => {
+          // Send new uploads as base64; keep existing hosted URLs so
+          // editing a quiz doesn't wipe images that weren't re-uploaded.
           const questionImage = q.questionImage
             ? await fileToBase64String(q.questionImage)
-            : q.questionImagePreview?.startsWith("data:")
-            ? q.questionImagePreview
-            : null;
+            : q.questionImagePreview || null;
 
           const options = await Promise.all(
             (q.options || []).map(async (opt) => ({
               text: opt.text,
               image: opt.image
                 ? await fileToBase64String(opt.image)
-                : opt.imagePreview?.startsWith("data:")
-                ? opt.imagePreview
-                : null,
+                : opt.imagePreview || null,
             }))
           );
 
@@ -266,11 +287,14 @@ const CourseQuiz = ({ editQuiz }) => {
       console.log("API Result:", result);
 
       if (result) {
+        // Keep the loaded quiz in sync so further edits update, not duplicate
+        dispatch(setQuiz(result));
+        dispatch(setEditQuiz(true));
         // Refresh full course details so UI reflects linked quizzes/subsections
         try {
           const updated = await getFullDetailsOfCourse(course._id, token);
-          if (updated) {
-            dispatch(setCourse(updated));
+          if (updated?.courseDetails) {
+            dispatch(setCourse(updated.courseDetails));
           }
         } catch (err) {
           console.error('Failed to refresh course after saving quiz', err);

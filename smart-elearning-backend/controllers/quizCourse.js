@@ -323,19 +323,144 @@ exports.updateQuiz = async (req, res) => {
   try {
     const { quizId } = req.params;
     const { questions } = req.body;
+    const instructorId = req.user.id;
 
-    const updatedQuiz = await Quiz.findByIdAndUpdate(
-      quizId,
-      { questions },
-      { new: true }
-    );
-
-    if (!updatedQuiz) {
-      return res.status(404).json({ success: false, message: "Quiz not found" });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid array of questions is required',
+      });
     }
 
-    res.status(200).json({ success: true, message: "Quiz updated", quiz: updatedQuiz });
+    const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ success: false, message: "Quiz not found" });
+    }
+    if (quiz.instructor.toString() !== instructorId) {
+      return res.status(403).json({ success: false, message: "You can only edit your own quizzes" });
+    }
+
+    // Normalize/validate the same way createQuiz does, and resolve images:
+    // keep existing hosted URLs, upload new base64 payloads.
+    const resolveImage = async (image) => {
+      if (typeof image !== 'string' || !image) return '';
+      if (image.startsWith('data:image')) {
+        const uploadResponse = await QuestionuploadImageToCloudinary(image, process.env.FOLDER_NAME);
+        return uploadResponse.secure_url;
+      }
+      if (/^https?:\/\//.test(image)) return image;
+      return '';
+    };
+
+    const updatedQuestions = [];
+
+    for (const [index, question] of questions.entries()) {
+      const {
+        question: questionText,
+        questionImage,
+        type = 'mcq',
+        options = [],
+        correctAnswerIndex,
+        pairs = []
+      } = question;
+
+      if (!questionText || typeof questionText !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: `Missing or invalid question text in question ${index + 1}`,
+        });
+      }
+
+      const normalizedType = type.toLowerCase();
+
+      if (normalizedType === 'mcq') {
+        if (!Array.isArray(options) || options.length < 2) {
+          return res.status(400).json({
+            success: false,
+            message: `MCQ question ${index + 1} must have at least 2 options`,
+          });
+        }
+        if (
+          typeof correctAnswerIndex !== 'number' ||
+          correctAnswerIndex < 0 ||
+          correctAnswerIndex >= options.length
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid correctAnswerIndex in question ${index + 1}`,
+          });
+        }
+        for (const [optIndex, option] of options.entries()) {
+          if (!option.text || typeof option.text !== 'string') {
+            return res.status(400).json({
+              success: false,
+              message: `Option ${optIndex + 1} in question ${index + 1} is invalid`,
+            });
+          }
+        }
+      }
+
+      let normalizedPairs = [];
+      if (normalizedType === 'dragdrop') {
+        // Accept both 'drag'/'drop' (frontend) and 'left'/'right' (database)
+        normalizedPairs = pairs.map(pair => ({
+          left: pair.left || pair.drag,
+          right: pair.right || pair.drop
+        }));
+
+        if (normalizedPairs.length < 1) {
+          return res.status(400).json({
+            success: false,
+            message: `Drag-and-drop question ${index + 1} must have at least 1 pair`,
+          });
+        }
+        for (const [pairIndex, pair] of normalizedPairs.entries()) {
+          if (!pair.left || !pair.right) {
+            return res.status(400).json({
+              success: false,
+              message: `Missing left/right text in pair ${pairIndex + 1} of question ${index + 1}`,
+            });
+          }
+        }
+      }
+
+      let cloudinaryImageUrl = '';
+      try {
+        cloudinaryImageUrl = await resolveImage(questionImage);
+      } catch (uploadError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Image upload failed',
+          error: uploadError.message,
+        });
+      }
+
+      const resolvedOptions = [];
+      if (normalizedType === 'mcq') {
+        for (const option of options) {
+          resolvedOptions.push({
+            text: option.text,
+            image: await resolveImage(option.image),
+          });
+        }
+      }
+
+      updatedQuestions.push({
+        question: questionText,
+        questionImage: cloudinaryImageUrl,
+        type: normalizedType,
+        ...(normalizedType === 'mcq'
+          ? { options: resolvedOptions, correctAnswerIndex }
+          : { pairs: normalizedPairs })
+      });
+    }
+
+    quiz.questions = updatedQuestions;
+    await quiz.save();
+
+    res.status(200).json({ success: true, message: "Quiz updated", quiz });
   } catch (error) {
+    console.error('Error updating quiz:', error);
     res.status(500).json({ success: false, message: "Error updating quiz", error: error.message });
   }
 };
