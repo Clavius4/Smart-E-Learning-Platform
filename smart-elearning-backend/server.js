@@ -41,7 +41,11 @@ const defaultAllowedOrigins = [
   'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:3000',
-  'http://smartmtn.ac.tz'
+  'http://smartmtn.ac.tz',
+  'https://smartmtn.ac.tz',
+  'https://www.smartmtn.ac.tz',
+  'http://smartmtn.ac.tz:1010',
+  'http://www.smartmtn.ac.tz:1010'
 ];
 
 const envFrontendUrls = (process.env.FRONTEND_URLS || '')
