@@ -1,6 +1,3 @@
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import ActionMenu from 'components/common/ActionMenu';
 import AnalyticsChart from './AnalyticsChart';
 
@@ -23,6 +20,7 @@ const actions = [
 ];
 
 import { CategoryStat } from 'types/dashboard';
+import { Stack, Paper, Typography } from '@mui/material';
 
 const Analytics = ({ data }: { data?: CategoryStat[] }) => {
   const chartData = data ? data.map((item, index) => ({

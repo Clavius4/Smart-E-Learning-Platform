@@ -1,6 +1,4 @@
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
-import Pagination from '@mui/material/Pagination';
+import { Stack, Typography, Pagination } from '@mui/material';
 import {
   gridPageSelector,
   gridPageCountSelector,

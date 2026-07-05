@@ -1,8 +1,6 @@
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import IconifyIcon from 'components/base/IconifyIcon';
 import { TopCard as TopCardDataProps } from 'data/topCardsData';
+import { Stack, Paper, Typography } from '@mui/material';
 
 interface TopCardProps {
   data: TopCardDataProps;

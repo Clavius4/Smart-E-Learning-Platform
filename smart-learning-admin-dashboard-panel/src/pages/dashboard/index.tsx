@@ -1,5 +1,3 @@
-import Grid from '@mui/material/Grid';
-// import Typography from '@mui/material/Typography';
 import Analytics from 'components/sections/dashboard/analytics';
 import RecentOrders from 'components/sections/dashboard/recent-orders';
 import Reports from 'components/sections/dashboard/reports';
@@ -8,6 +6,7 @@ import TopSelling from 'components/sections/dashboard/top-selling';
 import { useEffect, useState } from 'react';
 import { DashboardStats } from 'types/dashboard';
 import api from 'services/api';
+import { Grid } from '@mui/material';
 
 const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);

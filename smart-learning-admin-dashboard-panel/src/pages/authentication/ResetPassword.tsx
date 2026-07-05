@@ -1,14 +1,7 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
-import ButtonBase from '@mui/material/ButtonBase';
 import Image from 'components/base/Image';
 import Logo from 'assets/images/Logo.png';
+import { Box, Link, Stack, Paper, Button, TextField, Typography, ButtonBase } from '@mui/material';
 
 const ResetPassword = () => {
   const [email, setEmail] = useState('');

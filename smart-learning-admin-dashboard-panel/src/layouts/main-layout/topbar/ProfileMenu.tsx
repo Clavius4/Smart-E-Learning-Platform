@@ -1,18 +1,10 @@
 import { useState } from 'react';
-import Box from '@mui/material/Box';
-import Menu from '@mui/material/Menu';
-import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
-import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
-import ButtonBase from '@mui/material/ButtonBase';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import IconifyIcon from 'components/base/IconifyIcon';
 import Profile from 'assets/images/Logo.png';
 import { useAuth } from 'contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import paths from 'routes/paths';
+import { Box, Menu, Stack, Avatar, Divider, MenuItem, Typography, ButtonBase, ListItemIcon } from '@mui/material';
 
 interface MenuItems {
   id: number;

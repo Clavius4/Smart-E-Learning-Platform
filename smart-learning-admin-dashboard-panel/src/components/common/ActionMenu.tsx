@@ -1,11 +1,6 @@
 import { useState } from 'react';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemIcon from '@mui/material/ListItemIcon';
 import IconifyIcon from 'components/base/IconifyIcon';
+import { Menu, MenuItem, Typography, IconButton, ListItemText, ListItemIcon } from '@mui/material';
 
 interface Action {
   id: number;

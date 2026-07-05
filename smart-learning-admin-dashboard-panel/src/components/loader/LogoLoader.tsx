@@ -1,7 +1,5 @@
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Typography from '@mui/material/Typography';
 import Logo from 'assets/images/Logo.png';
+import { Box, Stack, Typography } from '@mui/material';
 
 interface LogoLoaderProps {
   fullscreen?: boolean;

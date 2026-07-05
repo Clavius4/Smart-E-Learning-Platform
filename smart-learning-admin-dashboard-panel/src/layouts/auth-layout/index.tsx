@@ -1,9 +1,9 @@
 import { PropsWithChildren } from 'react';
 import { useLocation } from 'react-router-dom';
-import Stack from '@mui/material/Stack';
 import Image from 'components/base/Image';
 import SignInImage from 'assets/images/auth/signin-image.png';
 import SignUpImage from 'assets/images/auth/signup-image.png';
+import { Stack } from '@mui/material';
 
 const AuthLayout = ({ children }: PropsWithChildren) => {
   const location = useLocation();

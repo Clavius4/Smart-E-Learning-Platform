@@ -1,21 +1,4 @@
 import { useEffect, useState } from 'react';
-import Box from '@mui/material/Box';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
-import List from '@mui/material/List';
-import ListItem from '@mui/material/ListItem';
-import ListItemText from '@mui/material/ListItemText';
-import ListItemAvatar from '@mui/material/ListItemAvatar';
-import Avatar from '@mui/material/Avatar';
-import Alert from '@mui/material/Alert';
-import IconButton from '@mui/material/IconButton';
-import Chip from '@mui/material/Chip';
-import Badge from '@mui/material/Badge';
-import Stack from '@mui/material/Stack';
-import Fade from '@mui/material/Fade';
-import Grow from '@mui/material/Grow';
-import Zoom from '@mui/material/Zoom';
-import { alpha, useTheme } from '@mui/material/styles';
 import Loader from 'components/common/Loader';
 import { NotificationItem } from 'services/notifications';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
@@ -29,6 +12,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import LoginIcon from '@mui/icons-material/Login';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
+import { Box, Paper, Typography, List, ListItem, ListItemText, ListItemAvatar, Avatar, Alert, IconButton, Chip, Badge, Stack, Fade, Grow, Zoom, alpha, useTheme } from '@mui/material';
 
 
 interface ActionDetail {

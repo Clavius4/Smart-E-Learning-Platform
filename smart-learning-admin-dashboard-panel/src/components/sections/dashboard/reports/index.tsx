@@ -1,6 +1,3 @@
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Typography from '@mui/material/Typography';
 import ReportsChart from './ReportsChart';
 import ActionMenu from 'components/common/ActionMenu';
 
@@ -23,6 +20,7 @@ const actions = [
 ];
 
 import { SignupStat } from 'types/dashboard';
+import { Stack, Paper, Typography } from '@mui/material';
 
 const Reports = ({ data }: { data?: SignupStat[] }) => {
   // If data is provided (e.g., from backend as signup stats), transform it to array of numbers if Chart expects that.

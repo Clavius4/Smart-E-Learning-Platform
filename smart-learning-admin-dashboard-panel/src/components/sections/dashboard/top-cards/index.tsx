@@ -1,9 +1,9 @@
-import Grid from '@mui/material/Grid';
 import TopCard from './TopCard';
 import { topCardsData, TopCard as TopCardData } from 'data/topCardsData';
 import { useEffect, useState } from 'react';
 
 import { DashboardStats } from 'types/dashboard';
+import { Grid } from '@mui/material';
 
 const TopCards = ({ stats }: { stats?: DashboardStats }) => {
   const [cards, setCards] = useState<TopCardData[]>(topCardsData);

@@ -1,9 +1,8 @@
 import * as React from 'react';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
 import Sidebar from './sidebar';
 import Topbar from './topbar';
 import Footer from './footer';
+import { Box, Stack } from '@mui/material';
 
 const MainLayout = ({ children }: React.PropsWithChildren) => {
   const [expand, setExpand] = React.useState(false);

@@ -1,20 +1,9 @@
 import { useState, ChangeEvent, FormEvent } from 'react';
-import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import ButtonBase from '@mui/material/ButtonBase';
-import IconButton from '@mui/material/IconButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Typography from '@mui/material/Typography';
-import TextField from '@mui/material/TextField';
-import Checkbox from '@mui/material/Checkbox';
 import IconifyIcon from 'components/base/IconifyIcon';
 import Image from 'components/base/Image';
 import Logo from 'assets/images/Logo.png';
 import paths from 'routes/paths';
+import { Box, Link, Stack, Button, Divider, ButtonBase, IconButton, InputAdornment, FormControlLabel, Typography, TextField, Checkbox } from '@mui/material';
 
 interface User {
   [key: string]: string;

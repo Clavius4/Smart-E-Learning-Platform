@@ -1,4 +1,3 @@
-import { createTheme } from '@mui/material/styles';
 import type {} from '@mui/x-data-grid/themeAugmentation';
 import palette from './palette';
 import typography from './typography';
@@ -33,6 +32,7 @@ import Rating from './components/data-display/Rating';
 import Divider from './components/data-display/Divider';
 import AppBar from './components/navigation/Appbar';
 import Chip from './components/data-display/Chip';
+import { createTheme } from '@mui/material';
 
 export const theme = createTheme({
   typography,

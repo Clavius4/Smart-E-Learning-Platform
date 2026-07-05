@@ -1,11 +1,6 @@
-import Stack from '@mui/material/Stack';
-import Link from '@mui/material/Link';
-import Card from '@mui/material/Card';
-import Rating from '@mui/material/Rating';
-import CardMedia from '@mui/material/CardMedia';
-import Typography from '@mui/material/Typography';
 import IconifyIcon from 'components/base/IconifyIcon';
 import { TopProduct } from 'types/dashboard';
+import { Stack, Link, Card, Rating, CardMedia, Typography } from '@mui/material';
 
 interface ProductCardProps {
   data: TopProduct;

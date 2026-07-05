@@ -1,12 +1,8 @@
 import { TrendingCourse } from 'types/dashboard';
 import React from 'react';
-import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
-import Paper from '@mui/material/Paper';
-import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
 import ActionMenu from 'components/common/ActionMenu';
 import ProductCard from './ProductCard';
+import { Box, Stack, Paper, Divider, Typography } from '@mui/material';
 
 const actions = [
   {
