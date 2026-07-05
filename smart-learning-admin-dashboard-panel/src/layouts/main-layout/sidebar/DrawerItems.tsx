@@ -5,6 +5,7 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Badge from '@mui/material/Badge';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import ListItem from '@mui/material/ListItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -17,7 +18,6 @@ import Image from 'components/base/Image';
 import sitemap from 'routes/sitemap';
 import Logo from 'assets/images/Logo.png';
 import Profile from 'assets/images/Profile.png';
-import DrawerCardImg from 'assets/images/lighting.png';
 import { useAuth } from '../../../contexts/AuthContext';
 
 
@@ -26,7 +26,7 @@ interface DrawerItemsProps {
 }
 
 const DrawerItems = ({ expand }: DrawerItemsProps) => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   return (
     <>
       <Stack
@@ -61,10 +61,21 @@ const DrawerItems = ({ expand }: DrawerItemsProps) => {
               href={item.path}
               sx={(theme) => ({
                 minHeight: 48,
-                background:
-                  item.active && item.path === '/'
-                    ? `linear-gradient(90deg, ${theme.palette.gradients.secondary.main} 0%, ${theme.palette.gradients.secondary.state} ${expand ? '22.5%' : '62%'})`
-                    : 'info.lighter',
+                mx: 1.25,
+                my: 0.25,
+                borderRadius: 2,
+                transition: 'background-color 0.2s ease',
+                ...(item.active && item.path === '/'
+                  ? {
+                      background: `linear-gradient(90deg, ${theme.palette.gradients.secondary.main} 0%, ${theme.palette.gradients.secondary.state} ${expand ? '22.5%' : '62%'})`,
+                    }
+                  : {
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        '& .MuiListItemText-primary': { color: 'primary.main' },
+                        '& svg': { color: theme.palette.primary.main },
+                      },
+                    }),
               })}
             >
               <ListItemIcon sx={{ width: 48 }}>
@@ -131,45 +142,49 @@ const DrawerItems = ({ expand }: DrawerItemsProps) => {
       </List>
 
       <Box mt="auto" px={2.35} pb={5}>
-        <Stack
-          position="relative"
-          mt="auto"
-          mb={4}
-          width={1}
-          height="auto"
-          display={expand ? 'block' : 'none'}
-          sx={{ userSelect: 'none' }}
-        >
-          <Image src={DrawerCardImg} height={1} width={1} sx={{ objectFit: 'cover' }} />
-
-          <Stack position="absolute" bottom={24} width={1} px={2} justifyContent="center">
-            <Button variant="contained" fullWidth>
-              Upgrade Now
-            </Button>
-          </Stack>
-        </Stack>
-
-        <Stack
-          spacing={expand ? 1 : 2}
-          direction={expand ? 'row' : 'column'}
-          alignItems="center"
-          justifyContent="space-between"
-        >
-          <Stack component={Link} href="#!" spacing={1.5} alignItems="center">
-            <Image src={Profile} height={50} width={50} sx={{ borderRadius: 3 }} />
-            <Box sx={[expand ? { display: 'block' } : { display: 'none' }]}>
-              <Typography mb={-0.5} variant="body2" color="text.primary" fontWeight={700}>
-                Easin Arafat
+        <Stack spacing={2} alignItems="center">
+          <Stack
+            spacing={1.5}
+            width={1}
+            direction={expand ? 'row' : 'column'}
+            alignItems="center"
+            justifyContent={expand ? 'flex-start' : 'center'}
+          >
+            <Image src={Profile} height={44} width={44} sx={{ borderRadius: 3 }} />
+            <Box sx={[expand ? { display: 'block', minWidth: 0 } : { display: 'none' }]}>
+              <Typography
+                mb={-0.5}
+                variant="body2"
+                color="text.primary"
+                fontWeight={700}
+                noWrap
+              >
+                {user?.email?.split('@')[0] || 'Administrator'}
               </Typography>
               <Typography mt={-0.5} variant="caption" color="text.disabled" fontWeight={400}>
-                Free Account
+                Admin
               </Typography>
             </Box>
           </Stack>
 
-          <IconButton onClick={logout}>
-  <IconifyIcon icon="majesticons:logout" color="text.disabled" />
-</IconButton>
+          {expand ? (
+            <Button
+              fullWidth
+              variant="outlined"
+              color="error"
+              onClick={logout}
+              startIcon={<IconifyIcon icon="majesticons:logout" />}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+            >
+              Logout
+            </Button>
+          ) : (
+            <Tooltip title="Logout" placement="right">
+              <IconButton onClick={logout} aria-label="Logout">
+                <IconifyIcon icon="majesticons:logout" color="error.main" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Stack>
       </Box>
     </>

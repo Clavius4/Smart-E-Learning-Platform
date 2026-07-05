@@ -1,5 +1,4 @@
 import Typography from '@mui/material/Typography';
-import Link from '@mui/material/Link';
 
 const Footer = () => {
   return (
@@ -13,10 +12,7 @@ const Footer = () => {
       letterSpacing={0.5}
       fontWeight={500}
     >
-      Made with ❤️ by{' '}
-      <Link href="https://vitohub.org/" target="_blank" rel="noreferrer" fontWeight={600}>
-        {'VitoTech'}
-      </Link>
+      © {new Date().getFullYear()} E-Kids Smart Learning. All rights reserved.
     </Typography>
   );
 };
